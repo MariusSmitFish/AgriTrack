@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bitter", Georgia, serif;
+  --font-sans: "Source Sans 3", system-ui, sans-serif;
+
+  --color-field: #f6f2e9;
+  --color-field-dark: #ebe4d4;
+
+  --color-pasture-50: #f2f7f3;
+  --color-pasture-100: #dce9de;
+  --color-pasture-200: #b8d4be;
+  --color-pasture-600: #3d7349;
+  --color-pasture-700: #325f3c;
+  --color-pasture-800: #284d31;
+  --color-pasture-900: #1c3623;
+
+  --color-barn-100: #f5ebe0;
+  --color-barn-500: #a16207;
+  --color-barn-600: #854d0e;
+  --color-barn-800: #5c3509;
+
+  --color-soil-500: #78716c;
+  --color-soil-700: #44403c;
+  --color-soil-800: #292524;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-soil-800);
+  background-color: var(--color-field);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.field-pattern {
+  background-color: var(--color-field);
+  background-image:
+    radial-gradient(circle at 20% 20%, rgb(242 247 243 / 0.9) 0%, transparent 45%),
+    radial-gradient(circle at 80% 0%, rgb(245 235 224 / 0.7) 0%, transparent 35%);
+}

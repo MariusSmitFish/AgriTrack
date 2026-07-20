@@ -1,0 +1,57 @@
+---
+description: Mobile-first responsive UI and Tailwind styling conventions
+globs: src/**/*.tsx,src/**/*.css
+alwaysApply: false
+---
+
+# Responsive UI
+
+All UI must work on **phone first**, then scale up for tablet and desktop.
+
+## Layout
+
+- Authenticated pages use `AppShell` (mobile hamburger nav, desktop sidebar at `lg:`)
+- Page titles use `PageHeader` from `components/layout/AppShell.tsx`
+- Max content width: `max-w-7xl`; padding: `px-4 py-4 sm:px-6 sm:py-6 lg:py-8`
+
+## Breakpoints
+
+| Prefix | Use for |
+|--------|---------|
+| default | Single column, stacked forms, full-width buttons |
+| `sm:` (640px) | 2-column grids, inline buttons, show email in header |
+| `md:` (768px) | 2-column forms, show data tables |
+| `lg:` (1024px) | Sidebar nav, hide mobile menu |
+
+## Data lists
+
+- **Mobile (`< md`):** `MobileCardList` + `MobileCard` — never horizontal-scroll tables
+- **Desktop (`≥ md`):** `DesktopTable` with `<table>`
+- Always implement both views for list/table pages
+
+## Touch & typography
+
+- Buttons: `min-h-10` on mobile, `py-2.5`; full-width CTAs use `w-full sm:w-auto`
+- Inputs/selects: `py-2.5 text-base sm:text-sm` (prevents iOS zoom)
+- Cards: `p-4 sm:p-6`
+- Headings: `text-xl sm:text-2xl` for page titles; `text-2xl sm:text-3xl` for stat numbers
+
+## Colors & components
+
+- **Palette:** pasture green (`pasture-*`) primary, barn amber (`barn-*`) accent, warm cream (`field`) backgrounds, soil brown (`soil-*`) text
+- **Typography:** `font-display` (Bitter serif) for headings/brand, Source Sans 3 for body
+- **Brand:** use `Logo` component; background uses `field-pattern` class
+- Use existing UI: `Button`, `Input`, `Select`, `Card`, `StatCard`, `ActionLink` — do not add CSS frameworks
+- Tailwind v4 via `@import "tailwindcss"` + `@theme` in `index.css`
+
+## Example pattern
+
+```tsx
+// ✅ GOOD — responsive list page
+<PageHeader title="Users" description="..." />
+<MobileCardList>{items.map(...)}</MobileCardList>
+<DesktopTable><thead>...</thead><tbody>...</tbody></DesktopTable>
+
+// ❌ BAD — table only, breaks on mobile
+<table className="w-full">...</table>
+```

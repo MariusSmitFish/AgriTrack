@@ -1,0 +1,46 @@
+---
+description: React component and page structure conventions
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# React Patterns
+
+## File structure
+
+```
+src/
+  components/ui/       # Reusable primitives (Button, Input, Card, Select)
+  components/layout/   # AppShell, role-specific layouts
+  components/auth/     # ProtectedRoute, guards
+  contexts/            # AuthContext
+  lib/                 # supabase client, types, helpers
+  pages/{auth,superadmin,company}/
+```
+
+## Components
+
+- Functional components only; typed props interfaces
+- Pages are thin — data fetching + layout composition, not heavy logic
+- New authenticated pages: wrap in existing layout via `App.tsx` routes
+- New nav items: add to layout's `navItems` array, not ad-hoc links
+
+## Supabase in components
+
+```tsx
+// ✅ Query with typed results
+const { data, error } = await supabase.from('companies').select('*')
+if (error) setError(error.message)
+
+// ✅ Admin user creation
+await createUser({ email, password, full_name, role, company_id })
+```
+
+- Never import or expose `SUPABASE_SERVICE_ROLE_KEY` in frontend
+- Respect RLS — queries must work under the logged-in user's permissions
+
+## Forms
+
+- Use `Input`, `Select`, `Button` from `components/ui`
+- Grid layout: `grid grid-cols-1 gap-4 md:grid-cols-2`
+- Show errors inline below the form in `text-sm text-red-600`

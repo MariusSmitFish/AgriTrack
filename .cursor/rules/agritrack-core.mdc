@@ -1,0 +1,29 @@
+---
+description: AgriTrack project context, stack, and general AI coding principles
+alwaysApply: true
+---
+
+# AgriTrack Core
+
+## Stack
+
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router
+- **Backend:** Supabase (Auth, Postgres, RLS, Edge Functions)
+- **Deploy:** Netlify (SPA redirects in `netlify.toml`)
+
+## Architecture
+
+- Multi-tenant: `companies` + `profiles` with roles `superadmin`, `company_admin`, `company_user`
+- **Super Admin** → `/superadmin/*` (farms, users)
+- **Farm users** → `/app/*` (dashboard, team management)
+- Auth via `AuthContext`; route guards in `ProtectedRoute.tsx`
+- Admin user creation via `create-user` Edge Function — never use service role in frontend
+
+## Coding principles
+
+- Minimize scope — only change what the task requires
+- Match existing patterns before introducing new abstractions
+- Reuse `src/components/ui/*` and `AppShell` layout helpers
+- Env vars: `VITE_SUPABASE_URL` (no `/rest/v1` suffix), `VITE_SUPABASE_ANON_KEY`
+- Do not commit `.env` or add secrets to frontend code
+- Do not create git commits unless explicitly asked

@@ -1,0 +1,37 @@
+---
+description: Supabase schema, migrations, RLS, and auth conventions
+globs: supabase/**,src/lib/**
+alwaysApply: false
+---
+
+# Supabase Conventions
+
+## Schema changes
+
+- Add migrations as numbered SQL files in `supabase/migrations/`
+- Every tenant table must have `company_id` referencing `companies(id)`
+- Enable RLS on all public tables; policies must cover superadmin + company_admin scopes
+- Use helper functions `current_user_role()` and `current_user_company_id()` for policies
+
+## Auth & profiles
+
+- `profiles` extends `auth.users`; auto-created by `handle_new_user` trigger
+- Superadmin: `role = 'superadmin'`, `company_id = null`
+- Company users: require `company_id`; roles `company_admin` or `company_user`
+- Create users via Dashboard (with metadata) or `create-user` Edge Function — not raw SQL unless identity row is included
+
+## User metadata for Dashboard creation
+
+```json
+{"full_name":"Name","role":"superadmin"}
+```
+
+## Edge Functions
+
+- `supabase/functions/create-user/` — validates caller role, uses service role server-side
+- Deploy: `npx supabase functions deploy create-user`
+
+## Diagnostics
+
+- `supabase/diagnose_users.sql` — check auth.users + identities + profiles alignment
+- `supabase/fix_dashboard_user_creation.sql` — fix trigger if Dashboard user creation fails
