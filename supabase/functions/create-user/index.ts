@@ -12,6 +12,13 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   })
 }
 
+function roleLabel(role: string) {
+  if (role === 'superadmin') return 'Super Admin'
+  if (role === 'company_admin') return 'Farm Admin'
+  if (role === 'company_user') return 'Farm User'
+  return role
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -46,7 +53,7 @@ Deno.serve(async (req) => {
 
     const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('role, company_id')
+      .select('role, company_id, full_name, email')
       .eq('id', caller.id)
       .single()
 
@@ -80,13 +87,33 @@ Deno.serve(async (req) => {
         ? redirect_to
         : undefined
 
+    let farmName = ''
+    if (resolvedCompanyId) {
+      const { data: company } = await supabaseAdmin
+        .from('companies')
+        .select('name')
+        .eq('id', resolvedCompanyId)
+        .maybeSingle()
+      farmName = company?.name?.trim() ?? ''
+    }
+
+    const invitedBy =
+      (typeof callerProfile.full_name === 'string' && callerProfile.full_name.trim()) ||
+      (typeof callerProfile.email === 'string' && callerProfile.email.trim()) ||
+      caller.email ||
+      'An AgriTrack admin'
+
     const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         data: {
-          full_name,
+          full_name: full_name ?? '',
           role,
+          role_label: roleLabel(role),
           company_id: resolvedCompanyId ?? '',
+          farm_name: farmName,
+          invited_by: invitedBy,
+          app_name: 'AgriTrack',
         },
         redirectTo,
       },

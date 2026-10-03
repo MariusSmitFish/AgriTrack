@@ -100,9 +100,17 @@ Photos are not seeded (upload in the app).
 Admins invite users by email (no password field). The `create-user` Edge Function calls
 Supabase `inviteUserByEmail`, and the invitee sets their password at `/reset-password`.
 
+Invite metadata includes the invitee’s name, role label, farm name (when applicable), and
+who sent the invite — used by the branded email template.
+
 1. Deploy functions after changes:
    `npx supabase functions deploy create-user`
    `npx supabase functions deploy delete-user`
 2. In Supabase → Authentication → URL Configuration, add your app URL(s) to
    **Redirect URLs**, including `http://localhost:5173/reset-password` and your
    production `/reset-password` URL.
+3. Brand the invite email (Dashboard — not auto-deployed from the repo):
+   - Open **Authentication → Email Templates → Invite user**
+   - Subject: paste from [`supabase/email-templates/invite-subject.txt`](supabase/email-templates/invite-subject.txt)
+   - Body: paste from [`supabase/email-templates/invite.html`](supabase/email-templates/invite.html)
+   - Save, then send a test invite to confirm the link lands on `/reset-password`

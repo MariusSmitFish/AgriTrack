@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're invited to AgriTrack</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#e8e1d2;font-family:'Source Sans 3',Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#241f1c;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#e8e1d2;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#fffdf8;border:1px solid #d4c9b4;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="height:6px;background:linear-gradient(90deg,#284d31,#3d7349,#a16207);font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td style="padding:28px 28px 8px 28px;">
+                <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#3d7349;">
+                  AgriTrack
+                </p>
+                <h1 style="margin:10px 0 0 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;color:#1c3623;">
+                  You're invited
+                </h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 28px 0 28px;font-size:16px;line-height:1.55;color:#3f3a36;">
+                <p style="margin:0 0 14px 0;">
+                  Hi {{ if .Data.full_name }}{{ .Data.full_name }}{{ else }}there{{ end }},
+                </p>
+                <p style="margin:0 0 14px 0;">
+                  {{ if .Data.invited_by }}{{ .Data.invited_by }}{{ else }}An AgriTrack admin{{ end }}
+                  has invited you to
+                  {{ if .Data.farm_name }}
+                    <strong style="color:#1c3623;">{{ .Data.farm_name }}</strong> on
+                  {{ end }}
+                  <strong style="color:#1c3623;">AgriTrack</strong>
+                  {{ if .Data.role_label }}
+                    as a <strong style="color:#1c3623;">{{ .Data.role_label }}</strong>
+                  {{ end }}.
+                </p>
+                <p style="margin:0 0 22px 0;">
+                  Click the button below to set your password and open your account. This link is unique to you — don’t share it.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:0 28px 24px 28px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="center" style="border-radius:12px;background-color:#284d31;">
+                      <a
+                        href="{{ .ConfirmationURL }}"
+                        style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:12px;"
+                      >
+                        Set your password
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px 8px 28px;font-size:14px;line-height:1.5;color:#6f6860;">
+                <p style="margin:0 0 10px 0;">
+                  If the button doesn’t work, copy and paste this link into your browser:
+                </p>
+                <p style="margin:0;word-break:break-all;">
+                  <a href="{{ .ConfirmationURL }}" style="color:#325f3c;">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 28px 28px 28px;font-size:12px;line-height:1.45;color:#6f6860;border-top:1px solid #d4c9b4;">
+                <p style="margin:0;">
+                  This invite was sent to {{ .Email }}. If you weren’t expecting it, you can ignore this email.
+                </p>
+                <p style="margin:10px 0 0 0;">
+                  AgriTrack — smart farm management &amp; tracking
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -32,9 +32,10 @@ alwaysApply: false
 
 ## Edge Functions
 
-- `supabase/functions/create-user/` — invite by email (`inviteUserByEmail`); no password; validates caller role; uses service role server-side
+- `supabase/functions/create-user/` — invite by email (`inviteUserByEmail`); no password; validates caller role; uses service role server-side; passes `full_name`, `role_label`, `farm_name`, `invited_by` in user metadata for the Invite email template
 - `supabase/functions/delete-user/` — deletes auth user (+ cascaded profile); superadmin any user, company_admin same-company only; cannot delete self
 - Invitees set password via `/reset-password` (redirect URL must be allowlisted in Supabase Auth)
+- Branded invite copy: `supabase/email-templates/invite.html` + `invite-subject.txt` — paste into Dashboard → Authentication → Email Templates → Invite user
 - Deploy: `npx supabase functions deploy create-user` and `npx supabase functions deploy delete-user`
 
 ## Diagnostics
