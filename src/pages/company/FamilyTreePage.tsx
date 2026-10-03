@@ -195,17 +195,29 @@ export function FamilyTreePage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between print:hidden">
         <PageHeader
           title="Family trees"
-          description="Explore dams, sires, and calves across your herd."
+          description="Explore dams, sires, and offspring across your herd."
         />
-        <Link to="/app/animals/new" className="shrink-0">
-          <Button className="w-full sm:w-auto">+ Capture animal</Button>
-        </Link>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          {selectedId && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={() => window.print()}
+            >
+              Print pedigree
+            </Button>
+          )}
+          <Link to="/app/animals/new" className="shrink-0">
+            <Button className="w-full sm:w-auto">+ Capture animal</Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 print:hidden">
         <Card className="border-l-4 border-pasture-600" tone="accent">
           <p className="text-sm font-medium text-soil-500">Animals</p>
           <p className="mt-1 font-display text-2xl font-bold text-pasture-900">{animals.length}</p>
@@ -222,8 +234,8 @@ export function FamilyTreePage() {
         </Card>
       </div>
 
-      <Card className="border-pasture-200 bg-gradient-to-b from-pasture-50 via-panel to-panel-muted p-0">
-        <div className="border-b border-field-dark bg-panel/80 px-4 py-4 sm:px-6">
+      <Card className="border-pasture-200 bg-gradient-to-b from-pasture-50 via-panel to-panel-muted p-0 pedigree-print-root">
+        <div className="border-b border-field-dark bg-panel/80 px-4 py-4 sm:px-6 print:hidden">
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="flex w-full flex-col gap-3 md:max-w-md">
               <SearchField
@@ -288,7 +300,17 @@ export function FamilyTreePage() {
             </Link>
           </div>
         ) : tree ? (
-          <PedigreeTreeView tree={tree} onSelectAnimal={selectAnimal} />
+          <div className="px-2 py-2 sm:px-4">
+            <div className="mb-2 hidden print:block">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-soil-500">
+                AgriTrack pedigree
+              </p>
+              <h2 className="mt-1 font-display text-2xl font-bold text-pasture-900">
+                {animalLabel(tree.focus)}
+              </h2>
+            </div>
+            <PedigreeTreeView tree={tree} onSelectAnimal={selectAnimal} />
+          </div>
         ) : (
           <p className="px-4 py-16 text-center text-sm text-soil-500 sm:px-6">
             Select an animal to view its family tree.
@@ -297,7 +319,7 @@ export function FamilyTreePage() {
       </Card>
 
       {tree && (
-        <Card>
+        <Card className="print:hidden">
           <h3 className="font-display font-semibold text-pasture-900">Link parents</h3>
           <p className="mt-1 text-sm text-soil-500">
             Connect {animalLabel(tree.focus)} to a dam and sire already on this farm.

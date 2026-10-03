@@ -87,3 +87,45 @@ button {
 .pedigree-node {
   animation: pedigreeFade 0.45s ease-out both;
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black;
+    padding: 0;
+  }
+
+  .field-pattern {
+    background: white !important;
+  }
+
+  .print-hide,
+  header,
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .animal-print-card .print-only-block {
+    display: block !important;
+  }
+
+  .pedigree-print-root {
+    break-inside: avoid;
+  }
+
+  .pedigree-stage {
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

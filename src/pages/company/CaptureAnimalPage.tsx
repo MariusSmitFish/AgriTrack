@@ -351,7 +351,7 @@ export function CaptureAnimalPage() {
               onChange={(e) => set('notes', e.target.value)}
               rows={3}
               className="mt-1 w-full rounded-xl border border-field-dark bg-white px-3 py-2.5 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:text-sm"
-              placeholder="Health, treatments, calving notes..."
+              placeholder="Health, treatments, breeding notes..."
             />
           </div>
         </FormSection>

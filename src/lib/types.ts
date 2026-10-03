@@ -121,6 +121,33 @@ export interface AnimalInoculationFormData {
   notes: string
 }
 
+export type BreedingOutcome = 'open' | 'pregnant' | 'calved' | 'failed'
+
+export interface BreedingEvent {
+  id: string
+  company_id: string
+  dam_id: string
+  sire_id: string | null
+  served_at: string
+  expected_calving_at: string | null
+  outcome: BreedingOutcome
+  calf_id: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BreedingEventFormData {
+  dam_id: string
+  sire_id: string
+  served_at: string
+  expected_calving_at: string
+  outcome: BreedingOutcome
+  calf_id: string
+  notes: string
+}
+
 export interface AnimalFormData {
   tag_number: string
   stud_tag_number: string

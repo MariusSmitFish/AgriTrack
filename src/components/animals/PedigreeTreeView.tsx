@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { animalLabel, formatAnimalSex, type PedigreeTree } from '../../lib/animals'
+import { offspringNoun } from '../../lib/speciesTerms'
 import { PedigreeNodeCard } from './PedigreeNodeCard'
 
 interface PedigreeTreeViewProps {
@@ -73,24 +74,33 @@ export function PedigreeTreeView({ tree, onSelectAnimal }: PedigreeTreeViewProps
           <GenerationLabel>Offspring ({tree.offspring.length})</GenerationLabel>
           {tree.offspring.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-field-dark bg-white/50 px-4 py-6 text-center text-sm text-soil-500">
-              No calves linked yet. Set this animal as dam or sire on another record.
+              No {offspringNoun(tree.focus.species, true)} linked yet. Set this animal as dam or
+              sire on another record.
             </p>
           ) : (
             <div className="flex flex-wrap justify-center gap-3">
-              {tree.offspring.map((child, index) => (
-                <PedigreeNodeCard
-                  key={child.id}
-                  node={{
-                    kind: 'animal',
-                    animal: child,
-                    label: animalLabel(child),
-                    detail: [child.breed, child.birth_date].filter(Boolean).join(' · ') || undefined,
-                    role: child.dam_id === tree.focus.id ? 'Calf (dam)' : 'Calf (sire)',
-                  }}
-                  onSelect={onSelectAnimal}
-                  style={{ animationDelay: `${0.05 * index}s` }}
-                />
-              ))}
+              {tree.offspring.map((child, index) => {
+                const childYoung = offspringNoun(child.species ?? tree.focus.species)
+                const childTitle = childYoung.charAt(0).toUpperCase() + childYoung.slice(1)
+                return (
+                  <PedigreeNodeCard
+                    key={child.id}
+                    node={{
+                      kind: 'animal',
+                      animal: child,
+                      label: animalLabel(child),
+                      detail:
+                        [child.breed, child.birth_date].filter(Boolean).join(' · ') || undefined,
+                      role:
+                        child.dam_id === tree.focus.id
+                          ? `${childTitle} (dam)`
+                          : `${childTitle} (sire)`,
+                    }}
+                    onSelect={onSelectAnimal}
+                    style={{ animationDelay: `${0.05 * index}s` }}
+                  />
+                )
+              })}
             </div>
           )}
         </section>

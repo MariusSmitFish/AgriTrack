@@ -42,7 +42,7 @@ export function AppShell({ title, navItems }: AppShellProps) {
 
   return (
     <div className="field-pattern min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-pasture-800/15 bg-panel/95 shadow-sm shadow-pasture-900/10 backdrop-blur supports-[backdrop-filter]:bg-panel/90">
+      <header className="print-hide sticky top-0 z-30 border-b border-pasture-800/15 bg-panel/95 shadow-sm shadow-pasture-900/10 backdrop-blur supports-[backdrop-filter]:bg-panel/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -92,7 +92,7 @@ export function AppShell({ title, navItems }: AppShellProps) {
 
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
         <div className="flex gap-6 lg:gap-8">
-          <aside className="hidden w-52 shrink-0 lg:block xl:w-56">
+          <aside className="print-hide hidden w-52 shrink-0 lg:block xl:w-56">
             <nav className="sticky top-24 flex flex-col gap-1 rounded-2xl border border-field-dark bg-panel p-2 shadow-md shadow-pasture-900/10">
               <p className="px-3 pb-1 pt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-soil-500">
                 Menu

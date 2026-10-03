@@ -16,11 +16,14 @@ import { AnimalDetailPage } from './pages/company/AnimalDetailPage'
 import { CaptureAnimalPage } from './pages/company/CaptureAnimalPage'
 import { FamilyTreePage } from './pages/company/FamilyTreePage'
 import { LocationsPage } from './pages/company/LocationsPage'
+import { BreedingPage } from './pages/company/BreedingPage'
+import { InstallPrompt } from './components/pwa/InstallPrompt'
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <InstallPrompt />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -43,6 +46,7 @@ export default function App() {
               <Route path="animals/new" element={<CaptureAnimalPage />} />
               <Route path="animals/:animalId" element={<AnimalDetailPage />} />
               <Route path="family-trees" element={<FamilyTreePage />} />
+              <Route path="breeding" element={<BreedingPage />} />
               <Route path="locations" element={<LocationsPage />} />
             </Route>
           </Route>

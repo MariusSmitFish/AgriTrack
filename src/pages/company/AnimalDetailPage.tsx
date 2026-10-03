@@ -7,6 +7,8 @@ import { animalLabel, deleteAnimal, formatAnimalSex, formatAnimalStatus } from '
 import { animalPlaceLabel, encampmentLabel, locationLabel } from '../../lib/locations'
 import { AnimalPhotosPanel } from '../../components/animals/AnimalPhotosPanel'
 import { AnimalInoculationsPanel } from '../../components/animals/AnimalInoculationsPanel'
+import { AnimalBreedingPanel } from '../../components/animals/AnimalBreedingPanel'
+import { AnimalPrintCard } from '../../components/animals/AnimalPrintCard'
 import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
@@ -17,6 +19,7 @@ export function AnimalDetailPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [animal, setAnimal] = useState<Animal | null>(null)
+  const [herdAnimals, setHerdAnimals] = useState<Animal[]>([])
   const [locations, setLocations] = useState<FarmLocation[]>([])
   const [encampments, setEncampments] = useState<Encampment[]>([])
   const [locationId, setLocationId] = useState('')
@@ -31,7 +34,7 @@ export function AnimalDetailPage() {
     if (!animalId || !profile?.company_id) return
 
     setLoading(true)
-    const [animalRes, locationsRes, encampmentsRes] = await Promise.all([
+    const [animalRes, locationsRes, encampmentsRes, herdRes] = await Promise.all([
       supabase
         .from('animals')
         .select('*, encampments(id, name, location_id, locations(id, name))')
@@ -48,6 +51,11 @@ export function AnimalDetailPage() {
         .select('*')
         .eq('company_id', profile.company_id)
         .order('name'),
+      supabase
+        .from('animals')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .order('tag_number', { ascending: true }),
     ])
 
     if (animalRes.error) setError(animalRes.error.message)
@@ -64,6 +72,9 @@ export function AnimalDetailPage() {
 
     if (encampmentsRes.error) setError(encampmentsRes.error.message)
     else setEncampments(encampmentsRes.data ?? [])
+
+    if (herdRes.error) setError(herdRes.error.message)
+    else setHerdAnimals(herdRes.data ?? [])
 
     setLoading(false)
   }
@@ -187,7 +198,15 @@ export function AnimalDetailPage() {
           title={animalLabel(animal)}
           description="Photos, living place, and family links for this animal."
         />
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row print:hidden">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => window.print()}
+          >
+            Print / PDF card
+          </Button>
           <Link to={`/app/family-trees?animal=${animal.id}`}>
             <Button variant="secondary" className="w-full sm:w-auto">
               Family tree
@@ -209,7 +228,9 @@ export function AnimalDetailPage() {
         </div>
       </div>
 
-      <Card>
+      <AnimalPrintCard animal={animal} herdAnimals={herdAnimals} placeDisplay={placeDisplay} />
+
+      <Card className="print:hidden">
         <h3 className="font-display font-semibold text-pasture-900">Details</h3>
         <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -239,7 +260,7 @@ export function AnimalDetailPage() {
         )}
       </Card>
 
-      <Card>
+      <Card className="print:hidden">
         <h3 className="font-display font-semibold text-pasture-900">Living place</h3>
         <p className="mt-1 text-sm text-soil-500">
           Assign this animal to a location and encampment.
@@ -293,13 +314,26 @@ export function AnimalDetailPage() {
         {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>
 
-      <AnimalInoculationsPanel
-        animalId={animal.id}
-        companyId={profile.company_id}
-        userId={profile.id}
-      />
+      <div className="print:hidden">
+        <AnimalBreedingPanel
+          animal={animal}
+          companyId={profile.company_id}
+          userId={profile.id}
+          herdAnimals={herdAnimals}
+        />
+      </div>
 
-      <AnimalPhotosPanel animalId={animal.id} companyId={profile.company_id} userId={profile.id} />
+      <div className="print:hidden">
+        <AnimalInoculationsPanel
+          animalId={animal.id}
+          companyId={profile.company_id}
+          userId={profile.id}
+        />
+      </div>
+
+      <div className="print:hidden">
+        <AnimalPhotosPanel animalId={animal.id} companyId={profile.company_id} userId={profile.id} />
+      </div>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { animalLabel, deleteAnimal, formatAnimalSex, formatAnimalStatus } from '
 import { animalPlaceLabel } from '../../lib/locations'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
+import { exportCsv } from '../../lib/exportCsv'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SearchField } from '../../components/ui/SearchField'
@@ -91,6 +92,40 @@ export function AnimalsPage() {
     end,
   } = useClientPagination(filteredAnimals, { resetKey: deferredQuery, pageSize: 20 })
 
+  const handleExportCsv = () => {
+    exportCsv(
+      'animals.csv',
+      [
+        'Tag',
+        'Stud tag',
+        'Name',
+        'Sex',
+        'Breed',
+        'Species',
+        'Status',
+        'Birth date',
+        'Lives at',
+        'Dam',
+        'Sire',
+        'Notes',
+      ],
+      filteredAnimals.map((animal) => [
+        animal.tag_number,
+        animal.stud_tag_number,
+        animal.name,
+        formatAnimalSex(animal.sex),
+        animal.breed,
+        animal.species,
+        formatAnimalStatus(animal.status),
+        animal.birth_date,
+        placeFor(animal),
+        parentLabel(animal.dam_id),
+        parentLabel(animal.sire_id),
+        animal.notes,
+      ]),
+    )
+  }
+
   const handleDelete = async (animal: Animal) => {
     const label = animalLabel(animal)
     if (
@@ -124,6 +159,16 @@ export function AnimalsPage() {
           description="Livestock on your farm. Open an animal to add photos and view history."
         />
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          {filteredAnimals.length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={handleExportCsv}
+            >
+              Export CSV
+            </Button>
+          )}
           <Link to="/app/family-trees">
             <Button variant="secondary" className="w-full sm:w-auto">
               Family trees

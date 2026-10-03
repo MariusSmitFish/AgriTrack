@@ -69,6 +69,18 @@ export async function fetchAnimalInoculations(animalId: string) {
   return (data ?? []) as AnimalInoculation[]
 }
 
+export async function fetchCompanyInoculations(companyId: string) {
+  const { data, error } = await supabase
+    .from('animal_inoculations')
+    .select('*')
+    .eq('company_id', companyId)
+    .not('next_due_at', 'is', null)
+    .order('next_due_at', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as AnimalInoculation[]
+}
+
 export async function createAnimalInoculation(params: {
   companyId: string
   animalId: string
