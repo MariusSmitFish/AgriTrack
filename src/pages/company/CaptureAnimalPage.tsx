@@ -1,21 +1,29 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   animalFormToPayload,
   emptyAnimalForm,
+  type Animal,
   type AnimalFormData,
+  type Encampment,
+  type FarmLocation,
 } from '../../lib/types'
 import {
+  animalLabel,
+  animalOptionLabel,
   animalSexOptions,
   animalSpeciesOptions,
   animalStatusOptions,
 } from '../../lib/animals'
+import { animalPlaceLabel, encampmentLabel, locationLabel } from '../../lib/locations'
+import { filterBySearch } from '../../lib/search'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
+import { SearchField } from '../../components/ui/SearchField'
 import { TagScannerField } from '../../components/ui/TagScannerField'
 import { PageHeader } from '../../components/layout/AppShell'
 
@@ -32,12 +40,75 @@ export function CaptureAnimalPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState<AnimalFormData>(emptyAnimalForm())
+  const [herd, setHerd] = useState<Animal[]>([])
+  const [locations, setLocations] = useState<FarmLocation[]>([])
+  const [encampments, setEncampments] = useState<Encampment[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [parentQuery, setParentQuery] = useState('')
+  const deferredParentQuery = useDeferredValue(parentQuery)
 
   const set = <K extends keyof AnimalFormData>(key: K, value: AnimalFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  useEffect(() => {
+    if (!profile?.company_id) {
+      setError('Your account is not linked to a farm.')
+      return
+    }
+
+    Promise.all([
+      supabase
+        .from('animals')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('locations')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .order('name'),
+      supabase
+        .from('encampments')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .order('name'),
+    ]).then(([animalsRes, locationsRes, encampmentsRes]) => {
+      if (animalsRes.error) setError(animalsRes.error.message)
+      else setHerd(animalsRes.data ?? [])
+
+      if (locationsRes.error) setError(locationsRes.error.message)
+      else setLocations(locationsRes.data ?? [])
+
+      if (encampmentsRes.error) setError(encampmentsRes.error.message)
+      else setEncampments(encampmentsRes.data ?? [])
+    })
+  }, [profile?.company_id])
+
+  const damOptions = useMemo(() => {
+    const dams = herd.filter((a) => a.sex !== 'male')
+    return filterBySearch(dams, deferredParentQuery, (animal) => [
+      animal.tag_number,
+      animal.stud_tag_number,
+      animal.name,
+      animal.breed,
+    ])
+  }, [herd, deferredParentQuery])
+
+  const sireOptions = useMemo(() => {
+    const sires = herd.filter((a) => a.sex !== 'female')
+    return filterBySearch(sires, deferredParentQuery, (animal) => [
+      animal.tag_number,
+      animal.stud_tag_number,
+      animal.name,
+      animal.breed,
+    ])
+  }, [herd, deferredParentQuery])
+  const campsForLocation = useMemo(
+    () => encampments.filter((e) => e.location_id === form.location_id),
+    [encampments, form.location_id],
+  )
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -49,12 +120,25 @@ export function CaptureAnimalPage() {
     setError('')
     setSubmitting(true)
 
-    const payload = animalFormToPayload(form)
-    const { error: insertError } = await supabase.from('animals').insert({
-      ...payload,
-      company_id: profile.company_id,
-      created_by: profile.id,
+    const selectedLocation = locations.find((l) => l.id === form.location_id)
+    const selectedCamp = encampments.find((e) => e.id === form.encampment_id)
+    const placeLabel = animalPlaceLabel({
+      location: selectedLocation,
+      encampment: selectedCamp,
     })
+    const payload = animalFormToPayload(
+      form,
+      placeLabel === '—' ? null : placeLabel,
+    )
+    const { data, error: insertError } = await supabase
+      .from('animals')
+      .insert({
+        ...payload,
+        company_id: profile.company_id,
+        created_by: profile.id,
+      })
+      .select('id')
+      .single()
 
     if (insertError) {
       setError(insertError.message)
@@ -62,23 +146,18 @@ export function CaptureAnimalPage() {
       return
     }
 
-    navigate('/app/animals')
+    if (data?.id) navigate(`/app/animals/${data.id}`)
+    else navigate('/app/animals')
   }
 
-  useEffect(() => {
-    if (!profile?.company_id) {
-      setError('Your account is not linked to a farm.')
-    }
-  }, [profile?.company_id])
-
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Capture animal"
-        description="Record a new animal. All fields are optional — add what you know."
+        description="Record a new animal. Link dam and sire when you know them."
       />
 
-      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
         <FormSection title="Ear tags">
           <div className="md:col-span-2">
             <TagScannerField
@@ -143,14 +222,60 @@ export function CaptureAnimalPage() {
         </FormSection>
 
         <FormSection title="Pedigree">
+          <div className="md:col-span-2">
+            <SearchField
+              id="parent-search"
+              value={parentQuery}
+              onChange={setParentQuery}
+              placeholder="Filter dam/sire list by tag or name…"
+              resultCount={damOptions.length + sireOptions.length}
+              totalCount={herd.length}
+            />
+          </div>
+          <Select
+            label="Dam (mother) in herd"
+            id="dam_id"
+            value={form.dam_id}
+            onChange={(e) => {
+              const id = e.target.value
+              const dam = damOptions.find((a) => a.id === id)
+              set('dam_id', id)
+              if (dam?.tag_number) set('dam_tag_number', dam.tag_number)
+            }}
+          >
+            <option value="">Not linked</option>
+            {damOptions.map((animal) => (
+              <option key={animal.id} value={animal.id}>
+                {animalOptionLabel(animal)}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Sire (father) in herd"
+            id="sire_id"
+            value={form.sire_id}
+            onChange={(e) => {
+              const id = e.target.value
+              const sire = sireOptions.find((a) => a.id === id)
+              set('sire_id', id)
+              if (sire) set('sire_name', animalLabel(sire))
+            }}
+          >
+            <option value="">Not linked</option>
+            {sireOptions.map((animal) => (
+              <option key={animal.id} value={animal.id}>
+                {animalOptionLabel(animal)}
+              </option>
+            ))}
+          </Select>
           <Input
-            label="Dam tag number"
+            label="Dam tag (if not in herd)"
             value={form.dam_tag_number}
             onChange={(e) => set('dam_tag_number', e.target.value)}
             placeholder="Mother's tag"
           />
           <Input
-            label="Sire name"
+            label="Sire name (if not in herd)"
             value={form.sire_name}
             onChange={(e) => set('sire_name', e.target.value)}
             placeholder="Father's name"
@@ -177,12 +302,45 @@ export function CaptureAnimalPage() {
               </option>
             ))}
           </Select>
-          <Input
-            label="Location / pasture"
-            value={form.location}
-            onChange={(e) => set('location', e.target.value)}
-            placeholder="e.g. North paddock"
-          />
+          <Select
+            label="Location"
+            id="location_id"
+            value={form.location_id}
+            onChange={(e) => {
+              set('location_id', e.target.value)
+              set('encampment_id', '')
+            }}
+          >
+            <option value="">Not assigned</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {locationLabel(location)}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Encampment"
+            id="encampment_id"
+            value={form.encampment_id}
+            onChange={(e) => set('encampment_id', e.target.value)}
+            disabled={!form.location_id}
+          >
+            <option value="">{form.location_id ? 'Not assigned' : 'Select a location first'}</option>
+            {campsForLocation.map((camp) => (
+              <option key={camp.id} value={camp.id}>
+                {encampmentLabel(camp)}
+              </option>
+            ))}
+          </Select>
+          {locations.length === 0 && (
+            <p className="md:col-span-2 text-sm text-soil-500">
+              No locations yet.{' '}
+              <Link to="/app/locations" className="font-semibold text-pasture-800 hover:text-pasture-700">
+                Set up locations
+              </Link>{' '}
+              to assign where this animal lives.
+            </p>
+          )}
           <div className="md:col-span-2">
             <label htmlFor="notes" className="block text-sm font-semibold text-soil-700">
               Notes

@@ -29,22 +29,22 @@ async function readFunctionError(error: unknown): Promise<string> {
   }
 
   if (error instanceof FunctionsRelayError) {
-    return 'Could not reach the create-user function. Deploy it with: npx supabase functions deploy create-user'
+    return 'Could not reach the Edge Function. Deploy with: npx supabase functions deploy'
   }
 
   if (error instanceof Error) {
     return error.message
   }
 
-  return 'Failed to create user'
+  return 'Request failed'
 }
 
-export async function createUser(payload: CreateUserPayload) {
+async function invokeAuthedFunction(name: string, body: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase.functions.invoke('create-user', {
-    body: payload,
+  const { data, error } = await supabase.functions.invoke(name, {
+    body,
     headers: {
       Authorization: `Bearer ${session.access_token}`,
     },
@@ -59,4 +59,15 @@ export async function createUser(payload: CreateUserPayload) {
   }
 
   return data
+}
+
+export async function createUser(payload: CreateUserPayload) {
+  return invokeAuthedFunction('create-user', {
+    ...payload,
+    redirect_to: payload.redirect_to ?? `${window.location.origin}/reset-password`,
+  })
+}
+
+export async function deleteUser(userId: string) {
+  return invokeAuthedFunction('delete-user', { user_id: userId })
 }

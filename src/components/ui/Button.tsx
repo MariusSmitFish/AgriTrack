@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 const variants = {
   primary: 'bg-pasture-800 text-white hover:bg-pasture-700 shadow-sm',
-  secondary: 'bg-white text-soil-700 border border-field-dark hover:bg-field',
+  secondary: 'bg-panel-muted text-soil-800 border border-field-dark hover:bg-pasture-50',
   danger: 'bg-red-700 text-white hover:bg-red-800 shadow-sm',
 } as const
 

@@ -4,13 +4,18 @@ import { ProtectedRoute, RoleRedirect } from './components/auth/ProtectedRoute'
 import { SuperAdminLayout } from './components/layout/SuperAdminLayout'
 import { CompanyAdminLayout } from './components/layout/CompanyAdminLayout'
 import { LoginPage } from './pages/auth/LoginPage'
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { SuperAdminDashboardPage } from './pages/superadmin/DashboardPage'
 import { SuperAdminCompaniesPage } from './pages/superadmin/CompaniesPage'
 import { SuperAdminUsersPage } from './pages/superadmin/UsersPage'
 import { CompanyDashboardPage } from './pages/company/DashboardPage'
 import { CompanyUsersPage } from './pages/company/UsersPage'
 import { AnimalsPage } from './pages/company/AnimalsPage'
+import { AnimalDetailPage } from './pages/company/AnimalDetailPage'
 import { CaptureAnimalPage } from './pages/company/CaptureAnimalPage'
+import { FamilyTreePage } from './pages/company/FamilyTreePage'
+import { LocationsPage } from './pages/company/LocationsPage'
 
 export default function App() {
   return (
@@ -18,6 +23,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/" element={<RoleRedirect />} />
 
           <Route element={<ProtectedRoute allowedRoles={['superadmin']} />}>
@@ -34,6 +41,9 @@ export default function App() {
               <Route path="users" element={<CompanyUsersPage />} />
               <Route path="animals" element={<AnimalsPage />} />
               <Route path="animals/new" element={<CaptureAnimalPage />} />
+              <Route path="animals/:animalId" element={<AnimalDetailPage />} />
+              <Route path="family-trees" element={<FamilyTreePage />} />
+              <Route path="locations" element={<LocationsPage />} />
             </Route>
           </Route>
 

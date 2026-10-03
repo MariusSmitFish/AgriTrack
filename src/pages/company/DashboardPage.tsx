@@ -6,7 +6,7 @@ export function CompanyDashboardPage() {
   const { profile } = useAuth()
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Welcome back"
         description={
@@ -29,6 +29,8 @@ export function CompanyDashboardPage() {
         <h3 className="font-display font-semibold text-pasture-900">Quick actions</h3>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
           <ActionLink to="/app/animals/new">Capture animal</ActionLink>
+          <ActionLink to="/app/family-trees">Family trees</ActionLink>
+          <ActionLink to="/app/locations">Locations</ActionLink>
           {profile?.role === 'company_admin' && (
             <ActionLink to="/app/users">Manage farm team</ActionLink>
           )}

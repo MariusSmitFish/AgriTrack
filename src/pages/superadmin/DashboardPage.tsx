@@ -25,7 +25,7 @@ export function SuperAdminDashboardPage() {
   }, [])
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Dashboard"
         description="Overview of farms on the platform."

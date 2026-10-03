@@ -58,66 +58,40 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Forbidden: admin role required' }, 403)
     }
 
-    const { email, full_name, role, company_id, redirect_to } = await req.json()
+    const { user_id } = await req.json()
+    if (!user_id || typeof user_id !== 'string') {
+      return jsonResponse({ error: 'user_id is required' }, 400)
+    }
 
-    if (!email || !role) {
-      return jsonResponse({ error: 'email and role are required' }, 400)
+    if (user_id === caller.id) {
+      return jsonResponse({ error: 'You cannot delete your own account' }, 403)
+    }
+
+    const { data: targetProfile, error: targetError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, company_id, email')
+      .eq('id', user_id)
+      .single()
+
+    if (targetError || !targetProfile) {
+      return jsonResponse({ error: 'User not found' }, 404)
     }
 
     if (callerProfile.role === 'company_admin') {
-      if (role === 'superadmin' || company_id !== callerProfile.company_id) {
-        return jsonResponse({ error: 'Cannot create user with these permissions' }, 403)
+      if (
+        targetProfile.role === 'superadmin' ||
+        targetProfile.company_id !== callerProfile.company_id
+      ) {
+        return jsonResponse({ error: 'Cannot delete user with these permissions' }, 403)
       }
     }
 
-    if (role !== 'superadmin' && !company_id) {
-      return jsonResponse({ error: 'company_id required for non-superadmin users' }, 400)
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
+    if (deleteError) {
+      return jsonResponse({ error: deleteError.message }, 400)
     }
 
-    const resolvedCompanyId = role === 'superadmin' ? null : company_id
-    const redirectTo =
-      typeof redirect_to === 'string' && redirect_to.startsWith('http')
-        ? redirect_to
-        : undefined
-
-    const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email,
-      {
-        data: {
-          full_name,
-          role,
-          company_id: resolvedCompanyId ?? '',
-        },
-        redirectTo,
-      },
-    )
-
-    if (inviteError) {
-      return jsonResponse({ error: inviteError.message }, 400)
-    }
-
-    if (!invited.user) {
-      return jsonResponse({ error: 'User was not invited' }, 500)
-    }
-
-    // Upsert in case trigger already created a partial profile
-    const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
-      {
-        id: invited.user.id,
-        email,
-        full_name,
-        role,
-        company_id: resolvedCompanyId,
-      },
-      { onConflict: 'id' },
-    )
-
-    if (profileError) {
-      await supabaseAdmin.auth.admin.deleteUser(invited.user.id)
-      return jsonResponse({ error: `Profile error: ${profileError.message}` }, 400)
-    }
-
-    return jsonResponse({ user: invited.user })
+    return jsonResponse({ ok: true, deleted_user_id: user_id })
   } catch (err) {
     return jsonResponse({ error: (err as Error).message }, 500)
   }

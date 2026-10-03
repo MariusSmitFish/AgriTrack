@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -7,11 +7,15 @@ import { Card } from '../../components/ui/Card'
 import { Logo } from '../../components/ui/Logo'
 
 export function LoginPage() {
-  const { signIn, session, profile, loading } = useAuth()
+  const { signIn, session, profile, loading, isPasswordRecovery } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  if (!loading && isPasswordRecovery) {
+    return <Navigate to="/reset-password" replace />
+  }
 
   if (!loading && session && profile) {
     return <Navigate to="/" replace />
@@ -64,14 +68,24 @@ export function LoginPage() {
             required
             autoComplete="email"
           />
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <div className="space-y-1">
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-semibold text-pasture-800 hover:text-pasture-700"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          </div>
           {error && (
             <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
           )}

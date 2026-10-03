@@ -12,6 +12,10 @@ alwaysApply: false
 - Every tenant table must have `company_id` referencing `companies(id)`
 - Enable RLS on all public tables; policies must cover superadmin + company_admin scopes
 - Use helper functions `current_user_role()` and `current_user_company_id()` for policies
+- Animal photos: `animal_photos` + private Storage bucket `animal-photos` (path `{company_id}/{animal_id}/{id}.ext`)
+- Locations → encampments hierarchy; animals link via `encampment_id`. Farm admins manage locations/encampments; all farm users can read and assign animals
+- Animal inoculations: `animal_inoculations` (name, administered_at, optional next_due_at / batch / dosage)
+- Demo tools (superadmin RPCs): `seed_farm_demo_data`, `clear_farm_demo_data`, `reset_farm_data` — livestock/locations only; `is_demo` flag marks seeded rows
 
 ## Auth & profiles
 
@@ -28,8 +32,10 @@ alwaysApply: false
 
 ## Edge Functions
 
-- `supabase/functions/create-user/` — validates caller role, uses service role server-side
-- Deploy: `npx supabase functions deploy create-user`
+- `supabase/functions/create-user/` — invite by email (`inviteUserByEmail`); no password; validates caller role; uses service role server-side
+- `supabase/functions/delete-user/` — deletes auth user (+ cascaded profile); superadmin any user, company_admin same-company only; cannot delete self
+- Invitees set password via `/reset-password` (redirect URL must be allowlisted in Supabase Auth)
+- Deploy: `npx supabase functions deploy create-user` and `npx supabase functions deploy delete-user`
 
 ## Diagnostics
 

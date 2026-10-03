@@ -1,12 +1,40 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className = '',
+  tone = 'default',
+}: {
+  children: ReactNode
+  className?: string
+  tone?: 'default' | 'muted' | 'accent'
+}) {
+  const hasCustomBg = /\bbg-/.test(className)
+  const noPadding = /\bp-0\b/.test(className)
+
+  const toneClass =
+    tone === 'muted'
+      ? 'bg-panel-muted'
+      : tone === 'accent'
+        ? 'bg-pasture-50'
+        : 'bg-panel'
+
   return (
     <div
-      className={`rounded-2xl border border-field-dark/80 bg-white p-4 shadow-sm shadow-pasture-900/5 sm:p-6 ${className}`}
+      className={`overflow-hidden rounded-2xl border border-field-dark shadow-md shadow-pasture-900/10 ${
+        hasCustomBg ? '' : toneClass
+      } ${className}`}
     >
-      {children}
+      <div
+        className={`h-1.5 ${
+          tone === 'accent'
+            ? 'bg-gradient-to-r from-barn-500 to-pasture-600'
+            : 'bg-gradient-to-r from-pasture-700 via-pasture-600 to-pasture-200'
+        }`}
+        aria-hidden="true"
+      />
+      <div className={noPadding ? undefined : 'p-4 sm:p-6'}>{children}</div>
     </div>
   )
 }
@@ -20,10 +48,10 @@ export function StatCard({
   value: string | number
   accent?: 'pasture' | 'barn'
 }) {
-  const accentClass = accent === 'barn' ? 'border-barn-500' : 'border-pasture-600'
+  const accentClass = accent === 'barn' ? 'border-l-barn-500' : 'border-l-pasture-600'
 
   return (
-    <Card className={`border-l-4 ${accentClass}`}>
+    <Card className={`border-l-4 ${accentClass}`} tone={accent === 'barn' ? 'muted' : 'default'}>
       <p className="text-sm font-medium text-soil-500">{label}</p>
       <p className="mt-1 font-display text-2xl font-bold text-pasture-900 sm:text-3xl">{value}</p>
     </Card>
@@ -42,7 +70,7 @@ export function ActionLink({
   return (
     <Link
       to={to}
-      className={`block rounded-xl border border-pasture-100 bg-pasture-50 px-4 py-3 text-center text-sm font-semibold text-pasture-800 transition hover:border-pasture-200 hover:bg-pasture-100 sm:inline-block sm:py-2 ${className}`}
+      className={`block rounded-xl border border-pasture-200 bg-pasture-50 px-4 py-3 text-center text-sm font-semibold text-pasture-800 transition hover:border-pasture-600 hover:bg-pasture-100 sm:inline-block sm:py-2 ${className}`}
     >
       {children}
     </Link>

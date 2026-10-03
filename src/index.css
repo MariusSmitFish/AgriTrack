@@ -4,25 +4,28 @@
   --font-display: "Bitter", Georgia, serif;
   --font-sans: "Source Sans 3", system-ui, sans-serif;
 
-  --color-field: #f6f2e9;
-  --color-field-dark: #ebe4d4;
+  --color-field: #e8e1d2;
+  --color-field-dark: #d4c9b4;
 
-  --color-pasture-50: #f2f7f3;
-  --color-pasture-100: #dce9de;
-  --color-pasture-200: #b8d4be;
+  --color-pasture-50: #eef5f0;
+  --color-pasture-100: #d5e6d9;
+  --color-pasture-200: #a9cbb3;
   --color-pasture-600: #3d7349;
   --color-pasture-700: #325f3c;
   --color-pasture-800: #284d31;
   --color-pasture-900: #1c3623;
 
-  --color-barn-100: #f5ebe0;
+  --color-barn-100: #f0e4d4;
   --color-barn-500: #a16207;
   --color-barn-600: #854d0e;
   --color-barn-800: #5c3509;
 
-  --color-soil-500: #78716c;
-  --color-soil-700: #44403c;
-  --color-soil-800: #292524;
+  --color-soil-500: #6f6860;
+  --color-soil-700: #3f3a36;
+  --color-soil-800: #241f1c;
+
+  --color-panel: #fffdf8;
+  --color-panel-muted: #f3eee4;
 }
 
 html {
@@ -53,6 +56,34 @@ button {
 .field-pattern {
   background-color: var(--color-field);
   background-image:
-    radial-gradient(circle at 20% 20%, rgb(242 247 243 / 0.9) 0%, transparent 45%),
-    radial-gradient(circle at 80% 0%, rgb(245 235 224 / 0.7) 0%, transparent 35%);
+    radial-gradient(circle at 12% 8%, rgb(61 115 73 / 0.14) 0%, transparent 42%),
+    radial-gradient(circle at 88% 0%, rgb(161 98 7 / 0.1) 0%, transparent 36%),
+    linear-gradient(180deg, rgb(232 225 210 / 0.95) 0%, rgb(212 201 180 / 0.9) 100%);
+}
+
+.section-inset {
+  border: 1px solid rgb(212 201 180 / 0.95);
+  background:
+    linear-gradient(180deg, rgb(238 245 240 / 0.7) 0%, rgb(243 238 228 / 0.95) 100%);
+}
+
+@keyframes pedigreeFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pedigree-stage {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgb(61 115 73 / 0.14) 0%, transparent 46%),
+    linear-gradient(180deg, rgb(255 253 248 / 0.55) 0%, rgb(232 225 210 / 0.55) 100%);
+}
+
+.pedigree-node {
+  animation: pedigreeFade 0.45s ease-out both;
 }

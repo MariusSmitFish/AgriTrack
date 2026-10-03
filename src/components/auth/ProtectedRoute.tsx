@@ -17,9 +17,13 @@ function LoadingScreen() {
 }
 
 export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, isPasswordRecovery } = useAuth()
 
   if (loading) return <LoadingScreen />
+
+  if (isPasswordRecovery) {
+    return <Navigate to="/reset-password" replace />
+  }
 
   if (!session || !profile) {
     return <Navigate to="/login" replace />
@@ -33,9 +37,13 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 }
 
 export function RoleRedirect() {
-  const { profile, loading } = useAuth()
+  const { profile, loading, isPasswordRecovery } = useAuth()
 
   if (loading) return <LoadingScreen />
+
+  if (isPasswordRecovery) {
+    return <Navigate to="/reset-password" replace />
+  }
 
   if (!profile) {
     return <Navigate to="/login" replace />

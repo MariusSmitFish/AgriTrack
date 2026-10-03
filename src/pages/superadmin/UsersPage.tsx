@@ -1,10 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { createUser, supabase } from '../../lib/supabase'
+import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { createUser, deleteUser, supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 import type { Company, Profile, UserRole } from '../../lib/types'
+import { filterBySearch } from '../../lib/search'
+import { useClientPagination } from '../../lib/pagination'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
+import { SearchField } from '../../components/ui/SearchField'
+import { Pagination } from '../../components/ui/Pagination'
 import {
   DesktopTable,
   EmptyState,
@@ -20,17 +25,42 @@ const roleLabels: Record<UserRole, string> = {
 }
 
 export function SuperAdminUsersPage() {
+  const { profile } = useAuth()
   const [users, setUsers] = useState<Profile[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<UserRole>('company_admin')
   const [companyId, setCompanyId] = useState('')
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+
+  const filteredUsers = useMemo(
+    () =>
+      filterBySearch(users, deferredQuery, (user) => [
+        user.full_name,
+        user.email,
+        roleLabels[user.role],
+        (user.companies as { name: string } | null)?.name,
+      ]),
+    [users, deferredQuery],
+  )
+
+  const {
+    pageItems: pagedUsers,
+    page,
+    setPage,
+    totalPages,
+    totalItems,
+    start,
+    end,
+  } = useClientPagination(filteredUsers, { resetKey: deferredQuery })
 
   const loadData = async () => {
     setLoading(true)
@@ -52,79 +82,98 @@ export function SuperAdminUsersPage() {
     loadData()
   }, [])
 
+  const handleDelete = async (user: Profile) => {
+    if (user.id === profile?.id) {
+      setError('You cannot delete your own account.')
+      return
+    }
+
+    if (!window.confirm(`Delete ${user.full_name || user.email}? This cannot be undone.`)) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setDeletingId(user.id)
+
+    try {
+      await deleteUser(user.id)
+      setUsers((prev) => prev.filter((u) => u.id !== user.id))
+      setSuccess(`${user.full_name || user.email} deleted.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setSubmitting(true)
 
     try {
       await createUser({
         email,
-        password,
         full_name: fullName,
         role,
         company_id: role === 'superadmin' ? null : companyId,
       })
+      setSuccess(`Invite sent to ${email}. They’ll get an email to set their password.`)
       setEmail('')
-      setPassword('')
       setFullName('')
       setRole('company_admin')
       setCompanyId('')
       await loadData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create user')
+      setError(err instanceof Error ? err.message : 'Failed to invite user')
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <PageHeader title="Users" description="Create and manage users across all companies." />
+    <div className="space-y-6 sm:space-y-8">
+      <PageHeader title="Users" description="Invite and manage users across all companies." />
 
       <Card>
-        <h3 className="font-display font-semibold text-pasture-900">Create user</h3>
+        <h3 className="font-display font-semibold text-pasture-900">Invite user</h3>
+        <p className="mt-1 text-sm text-soil-500">
+          They’ll receive an email with a link to set up their password.
+        </p>
         <form onSubmit={handleCreate} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
           <Select label="Role" id="role" value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
             <option value="superadmin">Super Admin</option>
             <option value="company_admin">Company Admin</option>
             <option value="company_user">Company User</option>
           </Select>
           {role !== 'superadmin' && (
-            <div className="md:col-span-2">
-              <Select
-                label="Farm"
-                id="company"
-                value={companyId}
-                onChange={(e) => setCompanyId(e.target.value)}
-                required
-              >
-                <option value="">Select a farm</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <Select
+              label="Farm"
+              id="company"
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              required
+            >
+              <option value="">Select a farm</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
           )}
           <div className="md:col-span-2">
             <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create user'}
+              {submitting ? 'Sending invite...' : 'Send invite'}
             </Button>
           </div>
         </form>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>
 
       <Card>
@@ -135,42 +184,94 @@ export function SuperAdminUsersPage() {
           <EmptyState>No users yet.</EmptyState>
         ) : (
           <>
-            <MobileCardList>
-              {users.map((user) => (
-                <MobileCard
-                  key={user.id}
-                  title={user.full_name ?? '—'}
-                  subtitle={user.email}
-                  fields={[
-                    { label: 'Role', value: roleLabels[user.role] },
-                    { label: 'Farm', value: (user.companies as { name: string } | null)?.name ?? '—' },
-                  ]}
-                />
-              ))}
-            </MobileCardList>
+            <div className="mt-4">
+              <SearchField
+                id="users-search"
+                value={query}
+                onChange={setQuery}
+                placeholder="Search name, email, role, farm…"
+                resultCount={filteredUsers.length}
+                totalCount={users.length}
+              />
+            </div>
+            {filteredUsers.length === 0 ? (
+              <EmptyState>No users match your search.</EmptyState>
+            ) : (
+              <>
+                <MobileCardList>
+                  {pagedUsers.map((user) => (
+                    <MobileCard
+                      key={user.id}
+                      title={user.full_name ?? '—'}
+                      subtitle={user.email}
+                      fields={[
+                        { label: 'Role', value: roleLabels[user.role] },
+                        { label: 'Farm', value: (user.companies as { name: string } | null)?.name ?? '—' },
+                      ]}
+                      action={
+                        user.id === profile?.id ? undefined : (
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-red-700 hover:text-red-800 disabled:opacity-50"
+                            disabled={deletingId === user.id}
+                            onClick={() => handleDelete(user)}
+                          >
+                            {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        )
+                      }
+                    />
+                  ))}
+                </MobileCardList>
 
-            <DesktopTable>
-              <thead>
-                <tr className="border-b border-field-dark text-soil-500">
-                  <th className="pb-2 font-medium">Name</th>
-                  <th className="pb-2 font-medium">Email</th>
-                  <th className="pb-2 font-medium">Role</th>
-                  <th className="pb-2 font-medium">Farm</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-b border-field-dark/60">
-                    <td className="py-3 font-medium text-soil-800">{user.full_name ?? '—'}</td>
-                    <td className="py-3 text-soil-600">{user.email}</td>
-                    <td className="py-3 text-soil-600">{roleLabels[user.role]}</td>
-                    <td className="py-3 text-soil-600">
-                      {(user.companies as { name: string } | null)?.name ?? '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </DesktopTable>
+                <DesktopTable>
+                  <thead>
+                    <tr className="border-b border-field-dark text-soil-500">
+                      <th className="pb-2 font-medium">Name</th>
+                      <th className="pb-2 font-medium">Email</th>
+                      <th className="pb-2 font-medium">Role</th>
+                      <th className="pb-2 font-medium">Farm</th>
+                      <th className="pb-2 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedUsers.map((user) => (
+                      <tr key={user.id} className="border-b border-field-dark/60">
+                        <td className="py-3 font-medium text-soil-800">{user.full_name ?? '—'}</td>
+                        <td className="py-3 text-soil-600">{user.email}</td>
+                        <td className="py-3 text-soil-600">{roleLabels[user.role]}</td>
+                        <td className="py-3 text-soil-600">
+                          {(user.companies as { name: string } | null)?.name ?? '—'}
+                        </td>
+                        <td className="py-3 text-right">
+                          {user.id === profile?.id ? (
+                            <span className="text-xs text-soil-500">You</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="font-semibold text-red-700 hover:text-red-800 disabled:opacity-50"
+                              disabled={deletingId === user.id}
+                              onClick={() => handleDelete(user)}
+                            >
+                              {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DesktopTable>
+
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  start={start}
+                  end={end}
+                  onPageChange={setPage}
+                />
+              </>
+            )}
           </>
         )}
       </Card>

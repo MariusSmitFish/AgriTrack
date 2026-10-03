@@ -18,8 +18,8 @@ interface AppShellProps {
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
     isActive
-      ? 'bg-pasture-100 text-pasture-900'
-      : 'text-soil-600 hover:bg-field hover:text-soil-800'
+      ? 'bg-pasture-700 text-white shadow-sm'
+      : 'text-soil-700 hover:bg-pasture-50 hover:text-pasture-900'
   }`
 
 function MenuIcon({ open }: { open: boolean }) {
@@ -42,12 +42,12 @@ export function AppShell({ title, navItems }: AppShellProps) {
 
   return (
     <div className="field-pattern min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-field-dark/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
+      <header className="sticky top-0 z-30 border-b border-pasture-800/15 bg-panel/95 shadow-sm shadow-pasture-900/10 backdrop-blur supports-[backdrop-filter]:bg-panel/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              className="inline-flex rounded-xl border border-field-dark p-2 text-soil-600 hover:bg-field lg:hidden"
+              className="inline-flex rounded-xl border border-field-dark bg-panel-muted p-2 text-soil-700 hover:bg-pasture-50 lg:hidden"
               onClick={() => setMenuOpen((open) => !open)}
               aria-expanded={menuOpen}
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -56,7 +56,7 @@ export function AppShell({ title, navItems }: AppShellProps) {
             </button>
             <div className="min-w-0">
               <Logo size="sm" />
-              <h1 className="mt-0.5 truncate text-sm font-semibold text-soil-600 sm:text-base">{title}</h1>
+              <h1 className="mt-0.5 truncate text-sm font-semibold text-pasture-800 sm:text-base">{title}</h1>
             </div>
           </div>
 
@@ -71,7 +71,7 @@ export function AppShell({ title, navItems }: AppShellProps) {
         </div>
 
         {menuOpen && (
-          <nav className="border-t border-field-dark/80 px-4 py-3 lg:hidden">
+          <nav className="border-t border-field-dark bg-panel-muted px-4 py-3 lg:hidden">
             <div className="flex flex-col gap-1">
               {navItems.map((item) => (
                 <NavLink
@@ -93,7 +93,10 @@ export function AppShell({ title, navItems }: AppShellProps) {
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
         <div className="flex gap-6 lg:gap-8">
           <aside className="hidden w-52 shrink-0 lg:block xl:w-56">
-            <nav className="sticky top-24 flex flex-col gap-1 rounded-2xl border border-field-dark/80 bg-white/70 p-2">
+            <nav className="sticky top-24 flex flex-col gap-1 rounded-2xl border border-field-dark bg-panel p-2 shadow-md shadow-pasture-900/10">
+              <p className="px-3 pb-1 pt-2 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-soil-500">
+                Menu
+              </p>
               {navItems.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
                   {item.label}
@@ -113,15 +116,20 @@ export function AppShell({ title, navItems }: AppShellProps) {
 
 export function PageHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="mb-5 sm:mb-6">
-      <h2 className="font-display text-xl font-bold text-pasture-900 sm:text-2xl">{title}</h2>
-      {description && <p className="mt-1 text-sm text-soil-500">{description}</p>}
+    <div className="min-w-0 flex-1">
+      <div className="h-1.5 w-14 rounded-full bg-pasture-600" aria-hidden="true" />
+      <h2 className="mt-3 font-display text-xl font-bold text-pasture-900 sm:text-2xl">{title}</h2>
+      {description && <p className="mt-1.5 max-w-2xl text-sm text-soil-600">{description}</p>}
     </div>
   )
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="mt-4 text-sm text-soil-500">{children}</p>
+  return (
+    <p className="mt-4 rounded-xl border border-dashed border-field-dark bg-panel-muted px-4 py-6 text-center text-sm text-soil-600">
+      {children}
+    </p>
+  )
 }
 
 export function MobileCardList({ children }: { children: ReactNode }) {
@@ -140,19 +148,19 @@ export function MobileCard({
   action?: ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-field-dark/80 bg-field/60 p-4">
+    <div className="rounded-2xl border border-field-dark bg-panel-muted p-4 shadow-sm shadow-pasture-900/5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-soil-800">{title}</p>
-          {subtitle && <p className="truncate text-sm text-soil-500">{subtitle}</p>}
+          <p className="truncate font-semibold text-pasture-900">{title}</p>
+          {subtitle && <p className="truncate text-sm text-soil-600">{subtitle}</p>}
         </div>
         {action}
       </div>
-      <dl className="mt-3 space-y-2">
+      <dl className="mt-3 space-y-2 border-t border-field-dark/80 pt-3">
         {fields.map((field) => (
           <div key={field.label} className="flex justify-between gap-4 text-sm">
             <dt className="text-soil-500">{field.label}</dt>
-            <dd className="truncate text-right font-medium text-soil-700">{field.value}</dd>
+            <dd className="truncate text-right font-medium text-soil-800">{field.value}</dd>
           </div>
         ))}
       </dl>
@@ -162,8 +170,12 @@ export function MobileCard({
 
 export function DesktopTable({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-4 hidden overflow-x-auto md:block">
-      <table className="w-full min-w-[640px] text-left text-sm">{children}</table>
+    <div className="mt-4 hidden overflow-hidden rounded-xl border border-field-dark md:block">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm [&_tbody_tr:nth-child(even)]:bg-panel-muted/80 [&_tbody_tr:hover]:bg-pasture-50 [&_thead]:bg-pasture-800 [&_thead_th]:px-3 [&_thead_th]:py-3 [&_thead_th]:font-semibold [&_thead_th]:text-pasture-50 [&_tbody_td]:px-3">
+          {children}
+        </table>
+      </div>
     </div>
   )
 }

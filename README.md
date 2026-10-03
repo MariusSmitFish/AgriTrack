@@ -22,12 +22,13 @@ Multi-tenant farm management app with **SuperAdmin** and **Farm Admin** interfac
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. In the SQL Editor, run `supabase/migrations/001_initial_schema.sql`
-3. Deploy the Edge Function for user creation:
+3. Deploy the Edge Functions for user invite/delete:
 
 ```bash
 npx supabase login
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase functions deploy create-user
+npx supabase functions deploy delete-user
 ```
 
 4. Create your first user via **Authentication → Users → Add user** in the Supabase dashboard
@@ -81,5 +82,27 @@ supabase/
 
 - Add herd and livestock tracking features under `/app`
 - Extend RLS policies as you add domain tables (animals, fields, etc.)
-- Add password reset and invite-by-email flows
 - Wire up Supabase CLI for local migrations
+
+## Demo / test data
+
+As **Super Admin**, open **Farms** and use per-farm actions:
+
+- **Seed demo** — locations, encampments, ~265 animals (pedigrees), inoculations
+- **Clear demo** — removes only demo-tagged data
+- **Reset farm** — deletes all animals/locations/inoculations/photos for that farm (keeps users)
+
+Requires migration `008_farm_demo_seed_reset.sql` applied (`npx supabase db push` or SQL Editor).
+Photos are not seeded (upload in the app).
+
+## Inviting users
+
+Admins invite users by email (no password field). The `create-user` Edge Function calls
+Supabase `inviteUserByEmail`, and the invitee sets their password at `/reset-password`.
+
+1. Deploy functions after changes:
+   `npx supabase functions deploy create-user`
+   `npx supabase functions deploy delete-user`
+2. In Supabase → Authentication → URL Configuration, add your app URL(s) to
+   **Redirect URLs**, including `http://localhost:5173/reset-password` and your
+   production `/reset-password` URL.
