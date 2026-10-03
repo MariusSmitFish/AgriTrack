@@ -200,7 +200,7 @@ export function FamilyTreePage() {
           title="Family trees"
           description="Explore dams, sires, and offspring across your herd."
         />
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
           {selectedId && (
             <Button
               type="button"
@@ -211,7 +211,7 @@ export function FamilyTreePage() {
               Print pedigree
             </Button>
           )}
-          <Link to="/app/animals/new" className="shrink-0">
+          <Link to="/app/animals/new" className="block w-full shrink-0 sm:w-auto">
             <Button className="w-full sm:w-auto">+ Capture animal</Button>
           </Link>
         </div>

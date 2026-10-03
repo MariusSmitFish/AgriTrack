@@ -53,14 +53,14 @@ export function SearchField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full rounded-xl border border-field-dark bg-panel py-2.5 pl-9 pr-10 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:text-sm"
+          className="w-full min-h-11 rounded-xl border border-field-dark bg-panel py-2.5 pl-9 pr-10 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:min-h-0 sm:text-sm"
           {...props}
         />
         {value && (
           <button
             type="button"
             onClick={() => onChange('')}
-            className="absolute inset-y-0 right-2 my-auto inline-flex h-7 w-7 items-center justify-center rounded-lg text-soil-500 hover:bg-field hover:text-soil-800"
+            className="absolute inset-y-0 right-1.5 my-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-soil-500 touch-manipulation hover:bg-field hover:text-soil-800 sm:h-7 sm:w-7"
             aria-label="Clear search"
           >
             ×

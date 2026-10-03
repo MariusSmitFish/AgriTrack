@@ -53,11 +53,11 @@ export function Pagination({
         <span className="font-semibold text-soil-800">{totalItems}</span>
       </p>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-1.5">
         <Button
           type="button"
           variant="secondary"
-          className="px-3 py-1.5 text-xs"
+          className="min-h-11 px-4 text-sm sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
@@ -74,7 +74,7 @@ export function Pagination({
               <button
                 type="button"
                 onClick={() => onPageChange(pageNumber)}
-                className={`min-h-9 min-w-9 rounded-xl px-2.5 text-sm font-semibold transition ${
+                className={`min-h-11 min-w-11 touch-manipulation rounded-xl px-2.5 text-sm font-semibold transition sm:min-h-9 sm:min-w-9 ${
                   pageNumber === page
                     ? 'bg-pasture-700 text-white shadow-sm'
                     : 'border border-field-dark bg-panel-muted text-soil-700 hover:bg-pasture-50'
@@ -90,7 +90,7 @@ export function Pagination({
         <Button
           type="button"
           variant="secondary"
-          className="px-3 py-1.5 text-xs"
+          className="min-h-11 px-4 text-sm sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >

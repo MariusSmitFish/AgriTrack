@@ -126,7 +126,7 @@ export function CompanyDashboardPage() {
         <EmptyState>Loading herd overview...</EmptyState>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:gap-4">
             <StatCard label="Active herd" value={stats.active} />
             <StatCard label="Females" value={stats.females} />
             <StatCard label="Males" value={stats.males} />

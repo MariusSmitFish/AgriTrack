@@ -121,6 +121,24 @@ export interface AnimalInoculationFormData {
   notes: string
 }
 
+export interface AnimalWeight {
+  id: string
+  company_id: string
+  animal_id: string
+  weighed_at: string
+  weight_kg: number
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AnimalWeightFormData {
+  weighed_at: string
+  weight_kg: string
+  notes: string
+}
+
 export type BreedingOutcome = 'open' | 'pregnant' | 'calved' | 'failed'
 
 export interface BreedingEvent {

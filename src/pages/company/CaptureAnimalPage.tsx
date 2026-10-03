@@ -350,7 +350,7 @@ export function CaptureAnimalPage() {
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-xl border border-field-dark bg-white px-3 py-2.5 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:text-sm"
+              className="mt-1 w-full min-h-11 rounded-xl border border-field-dark bg-white px-3 py-2.5 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:min-h-0 sm:text-sm"
               placeholder="Health, treatments, breeding notes..."
             />
           </div>
@@ -358,15 +358,29 @@ export function CaptureAnimalPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="hidden gap-2 md:flex md:flex-row">
           <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
             {submitting ? 'Saving...' : 'Save animal'}
           </Button>
-          <Link to="/app/animals">
+          <Link to="/app/animals" className="block w-full sm:w-auto">
             <Button type="button" variant="secondary" className="w-full sm:w-auto">
               Cancel
             </Button>
           </Link>
+        </div>
+
+        <div className="h-20 md:hidden" aria-hidden="true" />
+        <div className="print-hide fixed inset-x-0 bottom-0 z-30 border-t border-field-dark bg-panel/95 px-3 pt-3 shadow-lg shadow-pasture-900/15 backdrop-blur md:hidden pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-7xl gap-2">
+            <Button type="submit" disabled={submitting} className="min-h-12 flex-1">
+              {submitting ? 'Saving...' : 'Save animal'}
+            </Button>
+            <Link to="/app/animals" className="block flex-1">
+              <Button type="button" variant="secondary" className="min-h-12 w-full">
+                Cancel
+              </Button>
+            </Link>
+          </div>
         </div>
       </form>
     </div>

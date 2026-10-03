@@ -83,21 +83,20 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="print-hide fixed inset-x-0 bottom-0 z-40 p-3 sm:p-4">
-      <div className="mx-auto flex max-w-lg flex-col gap-3 rounded-2xl border border-field-dark bg-panel p-4 shadow-lg shadow-pasture-900/20 sm:flex-row sm:items-center">
+    <div className="print-hide fixed inset-x-0 bottom-0 z-40 px-3 pt-2 sm:p-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex max-w-lg flex-col gap-2 rounded-2xl border border-field-dark bg-panel p-3 shadow-lg shadow-pasture-900/20 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-semibold text-pasture-900">
             Install AgriTrack
           </p>
           {iosTip ? (
-            <p className="mt-1 text-xs text-soil-600 sm:text-sm">
+            <p className="mt-0.5 text-xs leading-snug text-soil-600 sm:mt-1 sm:text-sm">
               On iPhone: tap <span className="font-semibold">Share</span>, then{' '}
-              <span className="font-semibold">Add to Home Screen</span> for a
-              one-tap farm app.
+              <span className="font-semibold">Add to Home Screen</span>.
             </p>
           ) : (
-            <p className="mt-1 text-xs text-soil-600 sm:text-sm">
-              Add AgriTrack to your home screen for faster access in the field.
+            <p className="mt-0.5 text-xs leading-snug text-soil-600 sm:mt-1 sm:text-sm">
+              Add to your home screen for faster access in the field.
             </p>
           )}
         </div>
@@ -105,7 +104,7 @@ export function InstallPrompt() {
           <Button
             type="button"
             variant="secondary"
-            className="px-3 py-2 text-xs"
+            className="min-h-10 flex-1 px-3 py-2 text-xs sm:flex-none"
             onClick={dismiss}
           >
             Not now
@@ -113,7 +112,7 @@ export function InstallPrompt() {
           {!iosTip && (
             <Button
               type="button"
-              className="px-3 py-2 text-xs"
+              className="min-h-10 flex-1 px-3 py-2 text-xs sm:flex-none"
               disabled={!deferred || installing}
               onClick={install}
             >

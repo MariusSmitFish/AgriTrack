@@ -7,6 +7,7 @@ import { animalLabel, deleteAnimal, formatAnimalSex, formatAnimalStatus } from '
 import { animalPlaceLabel, encampmentLabel, locationLabel } from '../../lib/locations'
 import { AnimalPhotosPanel } from '../../components/animals/AnimalPhotosPanel'
 import { AnimalInoculationsPanel } from '../../components/animals/AnimalInoculationsPanel'
+import { AnimalWeightsPanel } from '../../components/animals/AnimalWeightsPanel'
 import { AnimalBreedingPanel } from '../../components/animals/AnimalBreedingPanel'
 import { AnimalPrintCard } from '../../components/animals/AnimalPrintCard'
 import { Button } from '../../components/ui/Button'
@@ -198,7 +199,7 @@ export function AnimalDetailPage() {
           title={animalLabel(animal)}
           description="Photos, living place, and family links for this animal."
         />
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row print:hidden">
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row print:hidden">
           <Button
             type="button"
             variant="secondary"
@@ -207,12 +208,12 @@ export function AnimalDetailPage() {
           >
             Print / PDF card
           </Button>
-          <Link to={`/app/family-trees?animal=${animal.id}`}>
+          <Link to={`/app/family-trees?animal=${animal.id}`} className="block w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               Family tree
             </Button>
           </Link>
-          <Link to="/app/animals">
+          <Link to="/app/animals" className="block w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               All animals
             </Button>
@@ -320,6 +321,14 @@ export function AnimalDetailPage() {
           companyId={profile.company_id}
           userId={profile.id}
           herdAnimals={herdAnimals}
+        />
+      </div>
+
+      <div className="print:hidden">
+        <AnimalWeightsPanel
+          animalId={animal.id}
+          companyId={profile.company_id}
+          userId={profile.id}
         />
       </div>
 

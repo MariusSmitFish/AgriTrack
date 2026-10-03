@@ -158,7 +158,7 @@ export function AnimalsPage() {
           title="Animals"
           description="Livestock on your farm. Open an animal to add photos and view history."
         />
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
           {filteredAnimals.length > 0 && (
             <Button
               type="button"
@@ -169,12 +169,12 @@ export function AnimalsPage() {
               Export CSV
             </Button>
           )}
-          <Link to="/app/family-trees">
+          <Link to="/app/family-trees" className="block w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               Family trees
             </Button>
           </Link>
-          <Link to="/app/animals/new">
+          <Link to="/app/animals/new" className="block w-full sm:w-auto">
             <Button className="w-full sm:w-auto">+ Capture animal</Button>
           </Link>
         </div>
