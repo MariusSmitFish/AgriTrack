@@ -1,4 +1,4 @@
-# AgriTrack
+# AgriScale Farm
 
 Multi-tenant farm management app with **SuperAdmin** and **Farm Admin** interfaces, powered by Supabase and deployable to Netlify.
 

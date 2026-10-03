@@ -59,7 +59,7 @@ export function AnimalPrintCard({ animal, herdAnimals, placeDisplay }: AnimalPri
       <div className="print-only-block hidden print:block">
         <header className="border-b border-soil-800/20 pb-3">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-soil-500">
-            AgriTrack animal card
+            AgriScale Farm animal card
           </p>
           <h2 className="mt-1 font-display text-3xl font-bold text-pasture-900">
             {animalLabel(animal)}
@@ -154,7 +154,7 @@ export function AnimalPrintCard({ animal, herdAnimals, placeDisplay }: AnimalPri
         </section>
 
         <p className="mt-6 text-[0.65rem] text-soil-500">
-          Printed {new Date().toLocaleDateString()} · AgriTrack
+          Printed {new Date().toLocaleDateString()} · AgriScale Farm
         </p>
       </div>
 

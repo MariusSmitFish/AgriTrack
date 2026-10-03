@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../ui/Button'
 
-const DISMISS_KEY = 'agritrack-install-dismissed'
+const DISMISS_KEY = 'agriscalefarm-install-dismissed'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -87,7 +87,7 @@ export function InstallPrompt() {
       <div className="mx-auto flex max-w-lg flex-col gap-2 rounded-2xl border border-field-dark bg-panel p-3 shadow-lg shadow-pasture-900/20 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
         <div className="min-w-0 flex-1">
           <p className="font-display text-sm font-semibold text-pasture-900">
-            Install AgriTrack
+            Install AgriScale Farm
           </p>
           {iosTip ? (
             <p className="mt-0.5 text-xs leading-snug text-soil-600 sm:mt-1 sm:text-sm">

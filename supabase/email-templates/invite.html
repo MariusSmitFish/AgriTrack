@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>You're invited to AgriTrack</title>
+    <title>You're invited to AgriScale Farm</title>
   </head>
   <body style="margin:0;padding:0;background-color:#e8e1d2;font-family:'Source Sans 3',Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#241f1c;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#e8e1d2;padding:24px 12px;">
@@ -16,7 +16,7 @@
             <tr>
               <td style="padding:28px 28px 8px 28px;">
                 <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#3d7349;">
-                  AgriTrack
+                  AgriScale Farm
                 </p>
                 <h1 style="margin:10px 0 0 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.25;color:#1c3623;">
                   You're invited
@@ -29,12 +29,12 @@
                   Hi {{ if .Data.full_name }}{{ .Data.full_name }}{{ else }}there{{ end }},
                 </p>
                 <p style="margin:0 0 14px 0;">
-                  {{ if .Data.invited_by }}{{ .Data.invited_by }}{{ else }}An AgriTrack admin{{ end }}
+                  {{ if .Data.invited_by }}{{ .Data.invited_by }}{{ else }}An AgriScale Farm admin{{ end }}
                   has invited you to
                   {{ if .Data.farm_name }}
                     <strong style="color:#1c3623;">{{ .Data.farm_name }}</strong> on
                   {{ end }}
-                  <strong style="color:#1c3623;">AgriTrack</strong>
+                  <strong style="color:#1c3623;">AgriScale Farm</strong>
                   {{ if .Data.role_label }}
                     as a <strong style="color:#1c3623;">{{ .Data.role_label }}</strong>
                   {{ end }}.
@@ -76,7 +76,7 @@
                   This invite was sent to {{ .Email }}. If you weren’t expecting it, you can ignore this email.
                 </p>
                 <p style="margin:10px 0 0 0;">
-                  AgriTrack — smart farm management &amp; tracking
+                  AgriScale Farm — smart farm management &amp; tracking
                 </p>
               </td>
             </tr>

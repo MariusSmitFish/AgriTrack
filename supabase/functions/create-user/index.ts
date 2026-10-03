@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       (typeof callerProfile.full_name === 'string' && callerProfile.full_name.trim()) ||
       (typeof callerProfile.email === 'string' && callerProfile.email.trim()) ||
       caller.email ||
-      'An AgriTrack admin'
+      'An AgriScale Farm admin'
 
     const { data: invited, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
           company_id: resolvedCompanyId ?? '',
           farm_name: farmName,
           invited_by: invitedBy,
-          app_name: 'AgriTrack',
+          app_name: 'AgriScale Farm',
         },
         redirectTo,
       },

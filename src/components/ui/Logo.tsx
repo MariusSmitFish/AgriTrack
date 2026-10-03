@@ -25,7 +25,7 @@ export function Logo({ size = 'md', showTagline = false, className = '' }: LogoP
       </div>
       <div className="min-w-0">
         <p className={`font-display font-bold leading-tight text-pasture-900 ${s.title}`}>
-          AgriTrack
+          AgriScale Farm
         </p>
         {showTagline && (
           <p className={`leading-tight text-barn-600 ${s.tagline}`}>

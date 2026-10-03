@@ -303,7 +303,7 @@ export function FamilyTreePage() {
           <div className="px-2 py-2 sm:px-4">
             <div className="mb-2 hidden print:block">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-soil-500">
-                AgriTrack pedigree
+                AgriScale Farm pedigree
               </p>
               <h2 className="mt-1 font-display text-2xl font-bold text-pasture-900">
                 {animalLabel(tree.focus)}

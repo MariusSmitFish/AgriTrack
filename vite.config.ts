@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-icon.svg'],
       manifest: {
-        name: 'AgriTrack',
-        short_name: 'AgriTrack',
+        name: 'AgriScale Farm',
+        short_name: 'AgriScale Farm',
         description: 'Smart farm management and livestock tracking',
         theme_color: '#1c3623',
         background_color: '#e8e1d2',
