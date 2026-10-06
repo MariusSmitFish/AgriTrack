@@ -211,7 +211,7 @@ export function LocationsPage() {
     const campCount = encampments.filter((e) => e.location_id === location.id).length
     const message =
       campCount > 0
-        ? `Delete "${location.name}" and its ${campCount} encampment(s)? Animals in those camps will be unassigned.`
+        ? `Delete "${location.name}" and its ${campCount} camp(s)? Animals in those camps will be unassigned.`
         : `Delete location "${location.name}"?`
 
     if (!window.confirm(message)) return
@@ -252,7 +252,7 @@ export function LocationsPage() {
     if (result.error) {
       setError(result.error.message)
     } else {
-      setSuccess(editingCampId ? 'Encampment updated.' : 'Encampment added.')
+      setSuccess(editingCampId ? 'Camp updated.' : 'Camp added.')
       resetCampForm()
       await loadData()
     }
@@ -265,8 +265,8 @@ export function LocationsPage() {
     const count = animalCounts[camp.id] ?? 0
     const message =
       count > 0
-        ? `Delete "${camp.name}"? ${count} animal(s) will be unassigned from this encampment.`
-        : `Delete encampment "${camp.name}"?`
+        ? `Delete "${camp.name}"? ${count} animal(s) will be unassigned from this camp.`
+        : `Delete camp "${camp.name}"?`
 
     if (!window.confirm(message)) return
 
@@ -278,7 +278,7 @@ export function LocationsPage() {
       return
     }
 
-    setSuccess('Encampment deleted.')
+    setSuccess('Camp deleted.')
     resetCampForm()
     await loadData()
   }
@@ -287,7 +287,7 @@ export function LocationsPage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Locations"
-        description="Set up farm locations and the encampments where your animals live."
+        description="Set up farm locations and the camps where your animals live."
       />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -299,7 +299,7 @@ export function LocationsPage() {
             {editingLocationId ? 'Edit location' : 'Add location'}
           </h3>
           <p className="mt-1 text-sm text-soil-500">
-            A location is a farm area (block, section, or site) that contains encampments.
+            A location is a farm area (block, section, or site) that contains camps.
           </p>
           <form onSubmit={handleSaveLocation} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
@@ -373,7 +373,7 @@ export function LocationsPage() {
                         >
                           <p className="font-semibold text-pasture-900">{locationLabel(location)}</p>
                           <p className="mt-0.5 text-xs text-soil-500">
-                            {campCount} encampment{campCount === 1 ? '' : 's'}
+                            {campCount} camp{campCount === 1 ? '' : 's'}
                             {location.description ? ` · ${location.description}` : ''}
                           </p>
                         </button>
@@ -417,14 +417,14 @@ export function LocationsPage() {
 
         <Card className="lg:col-span-3">
           {!selectedLocation ? (
-            <EmptyState>Select a location to manage its encampments.</EmptyState>
+            <EmptyState>Select a location to manage its camps.</EmptyState>
           ) : (
             <>
               <h3 className="font-display font-semibold text-pasture-900">
-                Encampments at {locationLabel(selectedLocation)}
+                Camps at {locationLabel(selectedLocation)}
               </h3>
               <p className="mt-1 text-sm text-soil-500">
-                Encampments are the camps or paddocks where animals live within this location.
+                Camps are the paddocks where animals live within this location.
               </p>
 
               {isAdmin && (
@@ -433,7 +433,7 @@ export function LocationsPage() {
                   className="section-inset mt-4 grid grid-cols-1 gap-4 rounded-2xl p-4 md:grid-cols-2"
                 >
                   <Input
-                    label={editingCampId ? 'Edit encampment name' : 'Encampment name'}
+                    label={editingCampId ? 'Edit camp name' : 'Camp name'}
                     value={campName}
                     onChange={(e) => setCampName(e.target.value)}
                     placeholder="e.g. Camp 3 / River paddock"
@@ -450,8 +450,8 @@ export function LocationsPage() {
                       {savingCamp
                         ? 'Saving...'
                         : editingCampId
-                          ? 'Update encampment'
-                          : 'Add encampment'}
+                          ? 'Update camp'
+                          : 'Add camp'}
                     </Button>
                     {editingCampId && (
                       <Button
@@ -470,8 +470,8 @@ export function LocationsPage() {
               {campsForLocation.length === 0 ? (
                 <EmptyState>
                   {isAdmin
-                    ? 'No encampments here yet. Add one above.'
-                    : 'No encampments in this location yet.'}
+                    ? 'No camps here yet. Add one above.'
+                    : 'No camps in this location yet.'}
                 </EmptyState>
               ) : (
                 <>
@@ -480,13 +480,13 @@ export function LocationsPage() {
                       id="encampments-search"
                       value={campQuery}
                       onChange={setCampQuery}
-                      placeholder="Search encampments…"
+                      placeholder="Search camps…"
                       resultCount={filteredCamps.length}
                       totalCount={campsForLocation.length}
                     />
                   </div>
                   {filteredCamps.length === 0 ? (
-                    <EmptyState>No encampments match your search.</EmptyState>
+                    <EmptyState>No camps match your search.</EmptyState>
                   ) : (
                 <>
                   <MobileCardList>
@@ -530,7 +530,7 @@ export function LocationsPage() {
                   <DesktopTable>
                     <thead>
                       <tr className="border-b border-field-dark text-soil-500">
-                        <th className="pb-2 font-medium">Encampment</th>
+                        <th className="pb-2 font-medium">Camp</th>
                         <th className="pb-2 font-medium">Description</th>
                         <th className="pb-2 font-medium">Animals</th>
                         {isAdmin && <th className="pb-2 font-medium"></th>}

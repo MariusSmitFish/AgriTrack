@@ -19,7 +19,7 @@ export function gestationDaysForSpecies(species: string | null | undefined) {
     case 'cattle':
       return 283
     default:
-      return 280
+      return 150
   }
 }
 

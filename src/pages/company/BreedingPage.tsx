@@ -99,6 +99,14 @@ export function BreedingPage() {
     return animal ? animalLabel(animal) : id ? '—' : '—'
   }
 
+  const offspringIdsFor = (event: BreedingEvent) =>
+    event.offspring_ids?.length ? event.offspring_ids : event.calf_id ? [event.calf_id] : []
+
+  const offspringLabel = (event: BreedingEvent) => {
+    const labels = offspringIdsFor(event).map((id) => labelFor(id))
+    return labels.length > 0 ? labels.join(', ') : ''
+  }
+
   const speciesForDam = (damId: string | null) => animalById(damId)?.species ?? null
 
   const selectedDamSpecies = speciesForDam(form.dam_id)
@@ -129,6 +137,7 @@ export function BreedingPage() {
       formatBreedingOutcome(event.outcome, speciesForDam(event.dam_id)),
       formatInoculationDate(event.served_at),
       formatInoculationDate(event.expected_calving_at),
+      offspringLabel(event),
       event.notes,
     ])
   }, [events, filter, deferredQuery, animals, today, horizon])
@@ -223,13 +232,14 @@ export function BreedingPage() {
   const handleExport = () => {
     exportCsv(
       'breeding-events.csv',
-      ['Dam', 'Sire', 'Served', mixedSpeciesBirthLabels.expectedShort, 'Outcome', 'Notes'],
+      ['Dam', 'Sire', 'Mated', mixedSpeciesBirthLabels.expectedShort, 'Outcome', 'Offspring', 'Notes'],
       filteredEvents.map((event) => [
         labelFor(event.dam_id),
         labelFor(event.sire_id),
         event.served_at,
         event.expected_calving_at,
         formatBreedingOutcome(event.outcome, speciesForDam(event.dam_id)),
+        offspringLabel(event),
         event.notes,
       ]),
     )
@@ -242,16 +252,23 @@ export function BreedingPage() {
           title="Breeding"
           description={mixedSpeciesBirthLabels.trackDescription}
         />
-        {filteredEvents.length > 0 && (
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full shrink-0 sm:w-auto"
-            onClick={handleExport}
-          >
-            Export CSV
-          </Button>
-        )}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Link to="/app/births" className="block w-full sm:w-auto">
+            <Button type="button" className="w-full sm:w-auto">
+              Capture birth
+            </Button>
+          </Link>
+          {filteredEvents.length > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={handleExport}
+            >
+              Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -287,7 +304,7 @@ export function BreedingPage() {
             ))}
           </Select>
           <Input
-            label="Served date"
+            label="Mated date"
             type="date"
             value={form.served_at}
             onChange={(e) => set('served_at', e.target.value)}
@@ -406,7 +423,7 @@ export function BreedingPage() {
                       title={labelFor(event.dam_id)}
                       subtitle={`Sire: ${labelFor(event.sire_id)}`}
                       fields={[
-                        { label: 'Served', value: formatInoculationDate(event.served_at) },
+                        { label: 'Mated', value: formatInoculationDate(event.served_at) },
                         {
                           label: 'Expected',
                           value: event.expected_calving_at
@@ -424,9 +441,20 @@ export function BreedingPage() {
                             speciesForDam(event.dam_id),
                           ),
                         },
+                        ...(offspringLabel(event)
+                          ? [{ label: 'Offspring', value: offspringLabel(event) }]
+                          : []),
                       ]}
                       action={
                         <div className="flex flex-col items-end gap-1">
+                          {(event.outcome === 'open' || event.outcome === 'pregnant') && (
+                            <Link
+                              to={`/app/births?event=${event.id}`}
+                              className="text-xs font-semibold text-pasture-800"
+                            >
+                              Record birth
+                            </Link>
+                          )}
                           <Link
                             to={`/app/animals/${event.dam_id}`}
                             className="text-xs font-semibold text-pasture-800"
@@ -458,7 +486,7 @@ export function BreedingPage() {
                     <tr className="border-b border-field-dark text-soil-500">
                       <th className="pb-2 font-medium">Dam</th>
                       <th className="pb-2 font-medium">Sire</th>
-                      <th className="pb-2 font-medium">Served</th>
+                      <th className="pb-2 font-medium">Mated</th>
                       <th className="pb-2 font-medium">Expected</th>
                       <th className="pb-2 font-medium">Outcome</th>
                       <th className="pb-2 font-medium"></th>
@@ -504,8 +532,21 @@ export function BreedingPage() {
                         </td>
                         <td className="py-3 text-soil-600">
                           {formatBreedingOutcome(event.outcome, speciesForDam(event.dam_id))}
+                          {offspringLabel(event) && (
+                            <span className="mt-0.5 block text-xs text-soil-500">
+                              {offspringLabel(event)}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 text-right">
+                          {(event.outcome === 'open' || event.outcome === 'pregnant') && (
+                            <Link
+                              to={`/app/births?event=${event.id}`}
+                              className="mr-3 font-semibold text-pasture-800 hover:text-pasture-700"
+                            >
+                              Record birth
+                            </Link>
+                          )}
                           <button
                             type="button"
                             className="mr-3 font-semibold text-pasture-800 hover:text-pasture-700"

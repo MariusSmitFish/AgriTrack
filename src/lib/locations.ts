@@ -5,7 +5,7 @@ export function locationLabel(location: Pick<FarmLocation, 'name'> | null | unde
 }
 
 export function encampmentLabel(encampment: Pick<Encampment, 'name'> | null | undefined) {
-  return encampment?.name?.trim() || 'Unnamed encampment'
+  return encampment?.name?.trim() || 'Unnamed camp'
 }
 
 export function animalPlaceLabel(params: {

@@ -4,7 +4,7 @@
 -- Demo livestock data is now seeded from the Super Admin UI:
 --   Farms → Seed demo / Clear demo / Reset farm
 --
--- Backed by RPCs in migration 008_farm_demo_seed_reset.sql:
+-- Backed by RPCs in migration 008, with the Boer goat herd in 012_demo_goat_seed.sql:
 --   seed_farm_demo_data(company_id)
 --   clear_farm_demo_data(company_id)
 --   reset_farm_data(company_id)

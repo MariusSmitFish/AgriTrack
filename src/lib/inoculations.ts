@@ -1,18 +1,9 @@
 import { supabase } from './supabase'
-import type { AnimalInoculation, AnimalInoculationFormData } from './types'
+import type { AnimalInoculation, AnimalInoculationFormData, HealthRecordKind } from './types'
 
-export const commonInoculationNames = [
-  'Anthrax',
-  'Blackleg / Clostridial',
-  'Botulism',
-  'Brucellosis',
-  'Foot and mouth',
-  'Lumpy skin disease',
-  'Pasteurella',
-  'Rabies',
-  'Rift Valley fever',
-  'Tetanus',
-] as const
+export function healthKindLabel(kind: string | null | undefined) {
+  return kind === 'treatment' ? 'Treatment' : 'Vaccination'
+}
 
 export function todayDateValue() {
   const now = new Date()
@@ -31,8 +22,9 @@ export function formatInoculationDate(value: string | null | undefined) {
   })
 }
 
-export function emptyInoculationForm(): AnimalInoculationFormData {
+export function emptyInoculationForm(kind: HealthRecordKind): AnimalInoculationFormData {
   return {
+    kind,
     name: '',
     administered_at: todayDateValue(),
     next_due_at: '',
@@ -47,6 +39,7 @@ export function inoculationFormToPayload(form: AnimalInoculationFormData) {
   const opt = (v: string) => (v.trim() === '' ? null : v.trim())
 
   return {
+    kind: form.kind,
     name: form.name.trim(),
     administered_at: form.administered_at,
     next_due_at: opt(form.next_due_at),

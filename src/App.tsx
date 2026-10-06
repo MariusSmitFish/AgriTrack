@@ -16,7 +16,9 @@ import { AnimalDetailPage } from './pages/company/AnimalDetailPage'
 import { CaptureAnimalPage } from './pages/company/CaptureAnimalPage'
 import { FamilyTreePage } from './pages/company/FamilyTreePage'
 import { LocationsPage } from './pages/company/LocationsPage'
+import { ConfigurationsPage } from './pages/company/ConfigurationsPage'
 import { BreedingPage } from './pages/company/BreedingPage'
+import { CaptureBirthPage } from './pages/company/CaptureBirthPage'
 import { InstallPrompt } from './components/pwa/InstallPrompt'
 
 export default function App() {
@@ -47,7 +49,9 @@ export default function App() {
               <Route path="animals/:animalId" element={<AnimalDetailPage />} />
               <Route path="family-trees" element={<FamilyTreePage />} />
               <Route path="breeding" element={<BreedingPage />} />
+              <Route path="births" element={<CaptureBirthPage />} />
               <Route path="locations" element={<LocationsPage />} />
+              <Route path="configurations" element={<ConfigurationsPage />} />
             </Route>
           </Route>
 

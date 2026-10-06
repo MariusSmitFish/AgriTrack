@@ -4,8 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import type { Animal, AnimalInoculation, BreedingEvent } from '../../lib/types'
 import { animalLabel } from '../../lib/animals'
-import { formatInoculationDate } from '../../lib/inoculations'
-import { fetchCompanyInoculations } from '../../lib/inoculations'
+import { fetchCompanyInoculations, formatInoculationDate, healthKindLabel } from '../../lib/inoculations'
 import { fetchCompanyBreedingEvents, formatBreedingOutcome } from '../../lib/breeding'
 import {
   buildInoculationAlerts,
@@ -98,13 +97,14 @@ export function CompanyDashboardPage() {
   const exportHealthCsv = () => {
     const rows = [...overdue, ...upcoming].map((alert) => [
       alert.animalLabel,
+      healthKindLabel(alert.kind),
       alert.name,
       alert.nextDueAt,
       alert.overdue ? 'Overdue' : 'Upcoming',
     ])
     exportCsv(
-      'inoculation-alerts.csv',
-      ['Animal', 'Inoculation', 'Next due', 'Status'],
+      'health-alerts.csv',
+      ['Animal', 'Type', 'Name', 'Next due', 'Status'],
       rows,
     )
   }
@@ -139,9 +139,11 @@ export function CompanyDashboardPage() {
             <h3 className="font-display font-semibold text-pasture-900">Quick actions</h3>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
               <ActionLink to="/app/animals/new">Capture animal</ActionLink>
+              <ActionLink to="/app/births">Capture birth</ActionLink>
               <ActionLink to="/app/breeding">Breeding</ActionLink>
-              <ActionLink to="/app/family-trees">Family trees</ActionLink>
+              <ActionLink to="/app/family-trees">Family tree</ActionLink>
               <ActionLink to="/app/locations">Locations</ActionLink>
+              <ActionLink to="/app/configurations">Configurations</ActionLink>
               {profile?.role === 'company_admin' && (
                 <ActionLink to="/app/users">Manage farm team</ActionLink>
               )}
@@ -170,7 +172,7 @@ export function CompanyDashboardPage() {
               </div>
 
               {overdue.length === 0 && upcoming.length === 0 ? (
-                <EmptyState>No upcoming or overdue inoculations.</EmptyState>
+                <EmptyState>No upcoming or overdue vaccinations or treatments.</EmptyState>
               ) : (
                 <ul className="mt-4 space-y-2">
                   {overdue.slice(0, 8).map((alert) => (
@@ -186,7 +188,7 @@ export function CompanyDashboardPage() {
                           </span>
                         </p>
                         <p className="mt-0.5 text-xs text-soil-600">
-                          {alert.name} · due {formatInoculationDate(alert.nextDueAt)}
+                          {healthKindLabel(alert.kind)} · {alert.name} · due {formatInoculationDate(alert.nextDueAt)}
                         </p>
                       </Link>
                     </li>
@@ -199,7 +201,7 @@ export function CompanyDashboardPage() {
                       >
                         <p className="text-sm font-semibold text-soil-800">{alert.animalLabel}</p>
                         <p className="mt-0.5 text-xs text-soil-600">
-                          {alert.name} · due {formatInoculationDate(alert.nextDueAt)}
+                          {healthKindLabel(alert.kind)} · {alert.name} · due {formatInoculationDate(alert.nextDueAt)}
                         </p>
                       </Link>
                     </li>
@@ -231,7 +233,7 @@ export function CompanyDashboardPage() {
                   {birthAlerts.overdueBirths.slice(0, 6).map((event) => (
                     <li key={event.id}>
                       <Link
-                        to={`/app/animals/${event.dam_id}`}
+                        to={`/app/births?event=${event.id}`}
                         className="block rounded-xl border border-barn-500/40 bg-barn-100/40 px-3 py-2.5 transition hover:bg-barn-100"
                       >
                         <p className="text-sm font-semibold text-soil-800">
@@ -253,7 +255,7 @@ export function CompanyDashboardPage() {
                   {birthAlerts.upcomingBirths.slice(0, 6).map((event) => (
                     <li key={event.id}>
                       <Link
-                        to={`/app/animals/${event.dam_id}`}
+                        to={`/app/births?event=${event.id}`}
                         className="block rounded-xl border border-field-dark bg-panel-muted px-3 py-2.5 transition hover:bg-pasture-50"
                       >
                         <p className="text-sm font-semibold text-soil-800">
@@ -277,7 +279,7 @@ export function CompanyDashboardPage() {
           {campCounts.length > 0 && (
             <Card>
               <h3 className="font-display font-semibold text-pasture-900">Headcount by place</h3>
-              <p className="mt-1 text-sm text-soil-500">Active animals by location / encampment.</p>
+              <p className="mt-1 text-sm text-soil-500">Active animals by location / camp.</p>
               <ul className="mt-4 divide-y divide-field-dark/70">
                 {campCounts.map((row) => (
                   <li

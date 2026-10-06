@@ -192,7 +192,7 @@ export function AnimalBreedingPanel({
             ))}
           </Select>
           <Input
-            label="Served date"
+            label="Mated date"
             type="date"
             value={form.served_at}
             onChange={(e) => set('served_at', e.target.value)}
@@ -242,7 +242,7 @@ export function AnimalBreedingPanel({
                       {event.sire_id ? ` · Sire ${labelFor(event.sire_id)}` : ''}
                     </p>
                     <p className="mt-0.5 text-xs text-soil-600">
-                      Served {formatInoculationDate(event.served_at)}
+                      Mated {formatInoculationDate(event.served_at)}
                       {event.expected_calving_at
                         ? ` · Expected ${formatInoculationDate(event.expected_calving_at)}${
                             isBirthOverdue(event.expected_calving_at, event.outcome)

@@ -61,6 +61,7 @@ export interface InoculationAlert {
   id: string
   animalId: string
   animalLabel: string
+  kind: string
   name: string
   nextDueAt: string
   overdue: boolean
@@ -85,6 +86,7 @@ export function buildInoculationAlerts(
       id: record.id,
       animalId: record.animal_id,
       animalLabel: animal ? animalLabel(animal) : 'Unknown animal',
+      kind: record.kind === 'treatment' ? 'treatment' : 'vaccination',
       name: record.name,
       nextDueAt: record.next_due_at,
       overdue: record.next_due_at < today,

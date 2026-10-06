@@ -10,9 +10,11 @@ export function CompanyAdminLayout() {
   const navItems: NavItem[] = [
     { to: '/app', label: 'Dashboard', end: true },
     { to: '/app/animals', label: 'Animals' },
-    { to: '/app/family-trees', label: 'Family trees' },
+    { to: '/app/family-trees', label: 'Family tree' },
     { to: '/app/breeding', label: 'Breeding' },
+    { to: '/app/births', label: 'Births' },
     { to: '/app/locations', label: 'Locations' },
+    { to: '/app/configurations', label: 'Configurations' },
     ...(isAdmin ? [{ to: '/app/users', label: 'Team' }] : []),
   ]
 

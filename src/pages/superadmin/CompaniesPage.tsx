@@ -123,7 +123,7 @@ export function SuperAdminCompaniesPage() {
     try {
       const result = await seedFarmDemoData(company.id)
       setSuccess(
-        `Demo data seeded on ${company.name}: ${result.animals} animals, ${result.locations} locations, ${result.encampments} encampments, ${result.inoculations} inoculations.`,
+        `Demo data seeded on ${company.name}: ${result.animals} animals, ${result.locations} locations, ${result.encampments} camps, ${result.inoculations} inoculations.`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to seed demo data')
@@ -160,7 +160,7 @@ export function SuperAdminCompaniesPage() {
   const handleResetFarm = async (company: Company) => {
     if (
       !confirm(
-        `RESET "${company.name}"?\n\nThis deletes ALL animals, locations, encampments, inoculations, and photo records on this farm.\nUsers and the farm itself are kept.\n\nThis cannot be undone.`,
+        `RESET "${company.name}"?\n\nThis deletes ALL animals, locations, camps, inoculations, and photo records on this farm.\nUsers and the farm itself are kept.\n\nThis cannot be undone.`,
       )
     ) {
       return
@@ -173,7 +173,7 @@ export function SuperAdminCompaniesPage() {
     try {
       const result = await resetFarmData(company.id)
       setSuccess(
-        `Farm reset for ${company.name}: removed ${result.deleted_animals} animals, ${result.deleted_locations} locations, ${result.deleted_encampments} encampments.`,
+        `Farm reset for ${company.name}: removed ${result.deleted_animals} animals, ${result.deleted_locations} locations, ${result.deleted_encampments} camps.`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset farm')
@@ -256,8 +256,8 @@ export function SuperAdminCompaniesPage() {
       <Card tone="muted">
         <h3 className="font-display font-semibold text-pasture-900">Demo data tools</h3>
         <p className="mt-1 text-sm text-soil-600">
-          <span className="font-semibold">Seed demo</span> adds locations, encampments, ~265 animals
-          (with pedigrees), and inoculations. <span className="font-semibold">Clear demo</span> removes
+          <span className="font-semibold">Seed demo</span> adds locations, camps, ~265 Boer goats
+          (with animal IDs and pedigrees), and inoculations. <span className="font-semibold">Clear demo</span> removes
           only that demo-tagged data. <span className="font-semibold">Reset farm</span> wipes all
           animals/locations on the farm (keeps users).
         </p>

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -12,18 +12,24 @@ import {
 } from '../../lib/types'
 import {
   animalLabel,
-  animalOptionLabel,
+  animalSelectionOptions,
   animalSexOptions,
   animalSpeciesOptions,
   animalStatusOptions,
+  digitsOnly,
+  formatAnimalId,
+  formatTagNumber,
+  normalizeTagNumber,
+  padDigits,
+  studbookScheduleOptions,
+  tagNumberDraft,
 } from '../../lib/animals'
 import { animalPlaceLabel, encampmentLabel, locationLabel } from '../../lib/locations'
-import { filterBySearch } from '../../lib/search'
+import { ParentPicker } from '../../components/animals/ParentPicker'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
-import { SearchField } from '../../components/ui/SearchField'
 import { TagScannerField } from '../../components/ui/TagScannerField'
 import { PageHeader } from '../../components/layout/AppShell'
 
@@ -45,9 +51,6 @@ export function CaptureAnimalPage() {
   const [encampments, setEncampments] = useState<Encampment[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [parentQuery, setParentQuery] = useState('')
-  const deferredParentQuery = useDeferredValue(parentQuery)
-
   const set = <K extends keyof AnimalFormData>(key: K, value: AnimalFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
@@ -86,25 +89,31 @@ export function CaptureAnimalPage() {
     })
   }, [profile?.company_id])
 
-  const damOptions = useMemo(() => {
-    const dams = herd.filter((a) => a.sex !== 'male')
-    return filterBySearch(dams, deferredParentQuery, (animal) => [
-      animal.tag_number,
-      animal.stud_tag_number,
-      animal.name,
-      animal.breed,
-    ])
-  }, [herd, deferredParentQuery])
+  const mothers = useMemo(() => herd.filter((animal) => animal.sex !== 'male'), [herd])
+  const fathers = useMemo(() => herd.filter((animal) => animal.sex !== 'female'), [herd])
+  const studPreview = padDigits(form.stud_number, 4)
+  const yearPreview = padDigits(form.id_year, 2)
+  const numberPreview = padDigits(form.id_number, 4)
+  const animalIdPreview = formatAnimalId({
+    stud_number: studPreview,
+    id_year: yearPreview,
+    id_number: numberPreview,
+  })
+  const applyTagNumber = (raw: string, finalize: boolean) => {
+    const draft = tagNumberDraft(raw)
+    const complete = draft.match(/^(\d{2})-(\d{4})$/)
+    const parsed = finalize || complete ? normalizeTagNumber(draft) : null
+    setForm((prev) => {
+      if (!parsed) return { ...prev, tag_number: draft }
+      return {
+        ...prev,
+        tag_number: parsed.tag,
+        id_year: parsed.year,
+        id_number: parsed.number,
+      }
+    })
+  }
 
-  const sireOptions = useMemo(() => {
-    const sires = herd.filter((a) => a.sex !== 'female')
-    return filterBySearch(sires, deferredParentQuery, (animal) => [
-      animal.tag_number,
-      animal.stud_tag_number,
-      animal.name,
-      animal.breed,
-    ])
-  }, [herd, deferredParentQuery])
   const campsForLocation = useMemo(
     () => encampments.filter((e) => e.location_id === form.location_id),
     [encampments, form.location_id],
@@ -158,25 +167,116 @@ export function CaptureAnimalPage() {
       />
 
       <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-        <FormSection title="Ear tags">
+        <FormSection title="Identification">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 md:col-span-2">
+            <Input
+              id="stud_number"
+              label="Stud number"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="####"
+              maxLength={4}
+              value={form.stud_number}
+              onChange={(e) => set('stud_number', digitsOnly(e.target.value, 4))}
+              onBlur={(e) => set('stud_number', padDigits(e.target.value, 4))}
+            />
+            <Input
+              id="id_year"
+              label="Year"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="##"
+              maxLength={2}
+              value={form.id_year}
+              onChange={(e) => set('id_year', digitsOnly(e.target.value, 2))}
+              onBlur={(e) => {
+                const year = padDigits(e.target.value, 2)
+                setForm((prev) => ({
+                  ...prev,
+                  id_year: year,
+                  tag_number:
+                    year && prev.id_number
+                      ? `${year}-${padDigits(prev.id_number, 4)}`
+                      : prev.tag_number,
+                }))
+              }}
+            />
+            <Input
+              id="id_number"
+              label="Number"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="####"
+              maxLength={4}
+              value={form.id_number}
+              onChange={(e) => set('id_number', digitsOnly(e.target.value, 4))}
+              onBlur={(e) => {
+                const number = padDigits(e.target.value, 4)
+                setForm((prev) => ({
+                  ...prev,
+                  id_number: number,
+                  tag_number:
+                    prev.id_year && number
+                      ? `${padDigits(prev.id_year, 2)}-${number}`
+                      : prev.tag_number,
+                }))
+              }}
+            />
+          </div>
+          <div className="section-inset rounded-xl px-3 py-2.5 md:col-span-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-soil-500">Animal ID</p>
+            <p className={`mt-0.5 text-sm font-medium ${animalIdPreview ? 'text-soil-800' : 'text-soil-400'}`}>
+              {animalIdPreview ?? '####-##-####'}
+            </p>
+            <p className="mt-1 text-xs text-soil-500">Stud number – year – number</p>
+          </div>
           <div className="md:col-span-2">
             <TagScannerField
               id="tag_number"
-              label="Visual tag number"
-              hint="Primary ear tag — the main ID you read in the field."
+              label="Tag number"
+              hint="Year – number, for example 01-1000."
+              placeholder="01-1000"
               value={form.tag_number}
-              onChange={(v) => set('tag_number', v)}
+              onChange={(v) => applyTagNumber(v, false)}
+              onCommit={(v) => applyTagNumber(v, true)}
             />
           </div>
-          <div className="md:col-span-2">
-            <TagScannerField
-              id="stud_tag_number"
-              label="Stud / backup tag number"
-              hint="Secondary tag or stud code — used when animals have two tags."
-              value={form.stud_tag_number}
-              onChange={(v) => set('stud_tag_number', v)}
-            />
-          </div>
+          <Input
+            id="studbook_number"
+            label="Studbook number"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="Large number"
+            maxLength={20}
+            value={form.studbook_number}
+            onChange={(e) => set('studbook_number', digitsOnly(e.target.value, 20))}
+          />
+          <Select
+            label="Studbook schedule"
+            id="studbook_schedule"
+            value={form.studbook_schedule}
+            onChange={(e) =>
+              set('studbook_schedule', e.target.value as AnimalFormData['studbook_schedule'])
+            }
+          >
+            {studbookScheduleOptions.map((o) => (
+              <option key={o.value || 'none'} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Selection"
+            id="selection"
+            value={form.selection}
+            onChange={(e) => set('selection', e.target.value as AnimalFormData['selection'])}
+          >
+            {animalSelectionOptions.map((o) => (
+              <option key={o.value || 'none'} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
           <Input
             label="Name or nickname"
             value={form.name}
@@ -222,72 +322,28 @@ export function CaptureAnimalPage() {
         </FormSection>
 
         <FormSection title="Pedigree">
-          <div className="md:col-span-2">
-            <SearchField
-              id="parent-search"
-              value={parentQuery}
-              onChange={setParentQuery}
-              placeholder="Filter dam/sire list by tag or name…"
-              resultCount={damOptions.length + sireOptions.length}
-              totalCount={herd.length}
-            />
-          </div>
-          <Select
-            label="Dam (mother) in herd"
-            id="dam_id"
-            value={form.dam_id}
-            onChange={(e) => {
-              const id = e.target.value
-              const dam = damOptions.find((a) => a.id === id)
+          <ParentPicker
+            id="capture-mother"
+            label="Mother"
+            animals={mothers}
+            selectedId={form.dam_id}
+            onSelect={(id) => {
+              const dam = mothers.find((animal) => animal.id === id)
               set('dam_id', id)
-              if (dam?.tag_number) set('dam_tag_number', dam.tag_number)
+              set('dam_tag_number', dam ? formatTagNumber(dam) ?? '' : '')
             }}
-          >
-            <option value="">Not linked</option>
-            {damOptions.map((animal) => (
-              <option key={animal.id} value={animal.id}>
-                {animalOptionLabel(animal)}
-              </option>
-            ))}
-          </Select>
-          <Select
-            label="Sire (father) in herd"
-            id="sire_id"
-            value={form.sire_id}
-            onChange={(e) => {
-              const id = e.target.value
-              const sire = sireOptions.find((a) => a.id === id)
+          />
+          <ParentPicker
+            id="capture-father"
+            label="Father"
+            animals={fathers}
+            selectedId={form.sire_id}
+            onSelect={(id) => {
+              const sire = fathers.find((animal) => animal.id === id)
               set('sire_id', id)
-              if (sire) set('sire_name', animalLabel(sire))
+              set('sire_name', sire ? animalLabel(sire) : '')
             }}
-          >
-            <option value="">Not linked</option>
-            {sireOptions.map((animal) => (
-              <option key={animal.id} value={animal.id}>
-                {animalOptionLabel(animal)}
-              </option>
-            ))}
-          </Select>
-          <Input
-            label="Dam tag (if not in herd)"
-            value={form.dam_tag_number}
-            onChange={(e) => set('dam_tag_number', e.target.value)}
-            placeholder="Mother's tag"
           />
-          <Input
-            label="Sire name (if not in herd)"
-            value={form.sire_name}
-            onChange={(e) => set('sire_name', e.target.value)}
-            placeholder="Father's name"
-          />
-          <div className="md:col-span-2">
-            <Input
-              label="Sire stud code"
-              value={form.sire_stud_code}
-              onChange={(e) => set('sire_stud_code', e.target.value)}
-              placeholder="Semen company / stud identifier"
-            />
-          </div>
         </FormSection>
 
         <FormSection title="Management">
@@ -319,7 +375,7 @@ export function CaptureAnimalPage() {
             ))}
           </Select>
           <Select
-            label="Encampment"
+            label="Camp"
             id="encampment_id"
             value={form.encampment_id}
             onChange={(e) => set('encampment_id', e.target.value)}

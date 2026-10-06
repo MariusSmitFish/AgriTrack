@@ -9,7 +9,7 @@ export const DEFAULT_GESTATION_DAYS = 283
 
 export function breedingOutcomeOptionsForSpecies(species?: string | null) {
   return [
-    { value: 'open' as const, label: 'Open / served' },
+    { value: 'open' as const, label: 'Open / mated' },
     { value: 'pregnant' as const, label: 'Pregnant' },
     { value: 'calved' as const, label: bornOutcomeLabel(species) },
     { value: 'failed' as const, label: 'Failed / open' },
