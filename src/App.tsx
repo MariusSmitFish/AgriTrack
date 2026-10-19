@@ -14,6 +14,7 @@ import { CompanyUsersPage } from './pages/company/UsersPage'
 import { AnimalsPage } from './pages/company/AnimalsPage'
 import { AnimalDetailPage } from './pages/company/AnimalDetailPage'
 import { CaptureAnimalPage } from './pages/company/CaptureAnimalPage'
+import { ImportAnimalsPage } from './pages/company/ImportAnimalsPage'
 import { FamilyTreePage } from './pages/company/FamilyTreePage'
 import { LocationsPage } from './pages/company/LocationsPage'
 import { ConfigurationsPage } from './pages/company/ConfigurationsPage'
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="users" element={<CompanyUsersPage />} />
               <Route path="animals" element={<AnimalsPage />} />
               <Route path="animals/new" element={<CaptureAnimalPage />} />
+              <Route path="animals/import" element={<ImportAnimalsPage />} />
               <Route path="animals/:animalId" element={<AnimalDetailPage />} />
               <Route path="family-trees" element={<FamilyTreePage />} />
               <Route path="breeding" element={<BreedingPage />} />

@@ -18,6 +18,7 @@ import { animalPlaceLabel } from '../../lib/locations'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import { exportCsv } from '../../lib/exportCsv'
+import { downloadAnimalTemplate } from '../../lib/animalImport'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { SearchField } from '../../components/ui/SearchField'
@@ -38,7 +39,20 @@ export function AnimalsPage() {
   const [success, setSuccess] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false)
   const deferredQuery = useDeferredValue(query)
+
+  const downloadTemplate = async () => {
+    setDownloadingTemplate(true)
+    setError('')
+    try {
+      await downloadAnimalTemplate()
+    } catch {
+      setError('Could not create the Excel template. Try again.')
+    } finally {
+      setDownloadingTemplate(false)
+    }
+  }
 
   const loadAnimals = async () => {
     if (!profile?.company_id) return
@@ -191,7 +205,7 @@ export function AnimalsPage() {
           title="Animals"
           description="Livestock on your farm. Open an animal to add photos and view history."
         />
-        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-1 sm:flex-row sm:flex-wrap sm:justify-end">
           {filteredAnimals.length > 0 && (
             <Button
               type="button"
@@ -202,6 +216,20 @@ export function AnimalsPage() {
               Export CSV
             </Button>
           )}
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={downloadTemplate}
+            disabled={downloadingTemplate}
+          >
+            {downloadingTemplate ? 'Preparing template...' : 'Download template'}
+          </Button>
+          <Link to="/app/animals/import" className="block w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              Upload Excel
+            </Button>
+          </Link>
           <Link to="/app/family-trees" className="block w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               Family tree
@@ -222,9 +250,22 @@ export function AnimalsPage() {
         ) : animals.length === 0 ? (
           <div className="text-center">
             <EmptyState>No animals recorded yet.</EmptyState>
-            <Link to="/app/animals/new" className="mt-4 inline-block">
-              <Button>Capture your first animal</Button>
-            </Link>
+            <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+              <Link to="/app/animals/new">
+                <Button>Capture your first animal</Button>
+              </Link>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={downloadTemplate}
+                disabled={downloadingTemplate}
+              >
+                {downloadingTemplate ? 'Preparing template...' : 'Download template'}
+              </Button>
+              <Link to="/app/animals/import">
+                <Button variant="secondary">Upload Excel</Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <>

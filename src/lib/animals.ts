@@ -77,23 +77,59 @@ export function normalizeTagNumber(value: string) {
   return { year, number, tag: `${year}-${number}` }
 }
 
+/** Turn common handwriting misreads (O, l, S) into digits when the text is mostly numbers. */
+function normalizeOcrText(text: string) {
+  const dashed = text.replace(/[–—−_.]/g, '-').replace(/\s+/g, ' ').trim()
+  if (!dashed) return ''
+  const letters = dashed.replace(/[^A-Za-z]/g, '').length
+  const digits = dashed.replace(/\D/g, '').length
+  if (digits === 0 || letters > digits) return dashed
+  return dashed
+    .replace(/[Oo]/g, '0')
+    .replace(/[Il|]/g, '1')
+    .replace(/[Ss]/g, '5')
+    .replace(/[Zz]/g, '2')
+    .replace(/[Bb]/g, '8')
+}
+
+function presentOcrTag(raw: string) {
+  const draft = tagNumberDraft(raw)
+  const full = draft.match(/^(\d{1,2})-(\d{4})$/)
+  if (!full) return draft
+  return `${full[1].padStart(2, '0')}-${full[2]}`
+}
+
+function rankDigitRun(value: string) {
+  if (value.length === 6) return 3
+  if (value.length === 5 || value.length === 4) return 2
+  return 1
+}
+
 /** Extract the most likely ear-tag number from OCR text. */
 export function extractTagFromOcr(text: string): string {
-  const cleaned = text.replace(/\s+/g, ' ').trim()
-  if (!cleaned) return ''
+  const source = normalizeOcrText(text)
+  if (!source) return ''
 
-  const hyphenated = cleaned.match(/\d{1,2}\s*[-–]\s*\d{1,4}/)
-  if (hyphenated) return tagNumberDraft(hyphenated[0].replace(/[–\s]/g, ''))
+  // "0 1 - 1 0 0 0" and "01-1000" both come back from handwritten digits.
+  const spacedHyphen = source.match(/\d(?: ?\d)? *- *\d(?: ?\d){0,3}/)
+  if (spacedHyphen) return presentOcrTag(spacedHyphen[0].replace(/ /g, ''))
 
-  const six = cleaned.match(/\d{6}/)
-  if (six) return `${six[0].slice(0, 2)}-${six[0].slice(2)}`
+  const groups = source.match(/(?:^|\D)(\d{1,2}) +(\d{3,4})(?!\d)/)
+  if (groups) return presentOcrTag(`${groups[1]}-${groups[2]}`)
 
-  const candidates = cleaned.match(/[A-Za-z]?[0-9]{2,}[A-Za-z0-9-]*/g) ?? []
-  if (candidates.length === 0) {
-    return tagNumberDraft(cleaned)
+  const collapsed = source.replace(/(\d) +(?=\d)/g, '$1')
+  const runs = collapsed.match(/\d{3,8}/g)
+  if (runs && runs.length > 0) {
+    let best = runs[0]
+    for (const run of runs) {
+      const betterRank = rankDigitRun(run) > rankDigitRun(best)
+      const sameRankLonger = rankDigitRun(run) === rankDigitRun(best) && run.length > best.length
+      if (betterRank || sameRankLonger) best = run
+    }
+    return presentOcrTag(best.length > 6 ? best.slice(0, 6) : best)
   }
 
-  return tagNumberDraft(candidates.sort((a, b) => b.length - a.length)[0] ?? '')
+  return presentOcrTag(collapsed)
 }
 
 export function digitsOnly(value: string, maxLength: number) {

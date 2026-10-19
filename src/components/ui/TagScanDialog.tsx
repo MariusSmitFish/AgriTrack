@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createWorker } from 'tesseract.js'
-import { extractTagFromOcr } from '../../lib/animals'
+import { preloadTagReader, scanTagFromVideo, TAG_FRAME } from '../../lib/tagOcr'
 import { Button } from './Button'
 import { Input } from './Input'
 
@@ -26,6 +25,8 @@ export function TagScanDialog({
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const cancelled = useRef(false)
+  const cameraRequest = useRef(0)
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -34,35 +35,63 @@ export function TagScanDialog({
   }, [])
 
   const startCamera = useCallback(async () => {
+    const request = ++cameraRequest.current
     setOcrError('')
     stopCamera()
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       })
+      if (cancelled.current || request !== cameraRequest.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
+      const track = stream.getVideoTracks()[0]
+      const focus = track?.getCapabilities?.() as { focusMode?: string[] } | undefined
+      if (track && focus?.focusMode?.includes('continuous')) {
+        try {
+          await track.applyConstraints({
+            advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+          })
+        } catch {
+          // Continuous focus is optional; the still frame is still usable.
+        }
+      }
+      if (request !== cameraRequest.current) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
       }
     } catch {
-      setOcrError('Camera access denied or unavailable. Enter the tag manually.')
+      if (!cancelled.current && request === cameraRequest.current) {
+        setOcrError('Camera access denied or unavailable. Enter the tag manually.')
+      }
     }
   }, [stopCamera])
 
   useEffect(() => {
     if (!open) return
+    cancelled.current = false
     setDraft(initialValue)
     setPreview(null)
     setOcrError('')
     setScanning(false)
+    preloadTagReader()
     startCamera()
-    return () => stopCamera()
+    return () => {
+      cancelled.current = true
+      cameraRequest.current += 1
+      stopCamera()
+    }
   }, [open, initialValue, startCamera, stopCamera])
 
   if (!open) return null
@@ -77,32 +106,28 @@ export function TagScanDialog({
     setScanning(true)
     setOcrError('')
 
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      setScanning(false)
-      setOcrError('Could not capture image.')
-      return
-    }
-
-    ctx.drawImage(video, 0, 0)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-    setPreview(dataUrl)
-    stopCamera()
-
     try {
-      const worker = await createWorker('eng')
-      const { data } = await worker.recognize(dataUrl)
-      await worker.terminate()
-      const extracted = extractTagFromOcr(data.text)
-      if (extracted) setDraft(extracted)
-      else setOcrError('No tag number detected. Adjust the photo or type it in.')
+      const result = await scanTagFromVideo(video)
+      if (cancelled.current) return
+      if (!result.previewUrl) {
+        setOcrError('Could not capture image.')
+        return
+      }
+      setPreview(result.previewUrl)
+      stopCamera()
+      const digits = result.tag.replace(/\D/g, '')
+      if (/^\d{2}-\d{4}$/.test(result.tag)) {
+        setDraft(result.tag)
+      } else if (digits.length >= 3) {
+        setDraft(result.tag)
+        setOcrError('Check the digits. Part of the handwritten number was unclear.')
+      } else {
+        setOcrError('Could not read the handwritten numbers. Fill the box, hold steady, and try again, or type the tag.')
+      }
     } catch {
-      setOcrError('Could not read the tag. Enter the number manually.')
+      if (!cancelled.current) setOcrError('Could not read the tag. Enter the number manually.')
     } finally {
-      setScanning(false)
+      if (!cancelled.current) setScanning(false)
     }
   }
 
@@ -118,7 +143,7 @@ export function TagScanDialog({
           <div>
             <h3 className="font-display font-semibold text-pasture-900">{title}</h3>
             <p className="mt-1 text-sm text-soil-500">
-              Point the camera at the ear tag. The tag is year – number, for example 01-1000.
+              Fit the handwritten numbers in the box. The tag is year – number, for example 01-1000.
             </p>
           </div>
           <button
@@ -132,14 +157,26 @@ export function TagScanDialog({
         </div>
 
         {!preview ? (
-          <div className="overflow-hidden rounded-xl border border-field-dark bg-soil-800">
-            <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted />
+          <div className="relative overflow-hidden rounded-xl border border-field-dark bg-soil-800">
+            <video ref={videoRef} className="aspect-[4/3] w-full object-cover" playsInline muted autoPlay />
+            <div
+              className="pointer-events-none absolute rounded-lg border-2 border-white shadow-[0_0_0_9999px_rgba(28,25,23,0.55)]"
+              style={{
+                left: `${TAG_FRAME.left}%`,
+                top: `${TAG_FRAME.top}%`,
+                width: `${TAG_FRAME.width}%`,
+                height: `${TAG_FRAME.height}%`,
+              }}
+            />
+            <p className="pointer-events-none absolute inset-x-3 bottom-2 text-center text-xs font-medium text-white">
+              Fit the handwritten numbers in the box
+            </p>
           </div>
         ) : (
           <img
             src={preview}
             alt="Captured tag"
-            className="aspect-[4/3] w-full rounded-xl border border-field-dark object-cover"
+            className="w-full rounded-xl border border-field-dark bg-soil-800"
           />
         )}
 
@@ -157,7 +194,7 @@ export function TagScanDialog({
           <div className="flex flex-col gap-2 sm:flex-row">
             {!preview ? (
               <Button type="button" className="w-full" onClick={captureAndScan} disabled={scanning}>
-                {scanning ? 'Reading tag...' : 'Capture & read'}
+                {scanning ? 'Reading numbers...' : 'Capture & read'}
               </Button>
             ) : (
               <>
@@ -167,6 +204,7 @@ export function TagScanDialog({
                   className="w-full"
                   onClick={() => {
                     setPreview(null)
+                    setOcrError('')
                     startCamera()
                   }}
                 >
