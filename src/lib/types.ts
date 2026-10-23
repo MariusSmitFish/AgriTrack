@@ -106,10 +106,12 @@ export interface AnimalPhotoWithUrl extends AnimalPhoto {
 
 export type HealthRecordKind = 'vaccination' | 'treatment'
 
+export type HealthOptionKind = 'vaccination' | 'condition' | 'medication'
+
 export interface HealthOption {
   id: string
   company_id: string
-  kind: HealthRecordKind
+  kind: HealthOptionKind
   name: string
   created_at: string
   updated_at: string
@@ -121,6 +123,8 @@ export interface AnimalInoculation {
   animal_id: string
   kind: HealthRecordKind
   name: string
+  condition: string | null
+  medication: string | null
   administered_at: string
   next_due_at: string | null
   batch_number: string | null
@@ -135,6 +139,8 @@ export interface AnimalInoculation {
 export interface AnimalInoculationFormData {
   kind: HealthRecordKind
   name: string
+  condition: string
+  medication: string
   administered_at: string
   next_due_at: string
   batch_number: string

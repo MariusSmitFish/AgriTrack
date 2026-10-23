@@ -26,6 +26,8 @@ export function emptyInoculationForm(kind: HealthRecordKind): AnimalInoculationF
   return {
     kind,
     name: '',
+    condition: '',
+    medication: '',
     administered_at: todayDateValue(),
     next_due_at: '',
     batch_number: '',
@@ -35,12 +37,38 @@ export function emptyInoculationForm(kind: HealthRecordKind): AnimalInoculationF
   }
 }
 
+export function treatmentMedication(record: {
+  kind?: string | null
+  name: string
+  medication?: string | null
+}) {
+  if (record.kind !== 'treatment') return ''
+  return (record.medication ?? record.name).trim()
+}
+
+export function inoculationDisplayName(record: {
+  kind?: string | null
+  name: string
+  condition?: string | null
+  medication?: string | null
+}) {
+  if (record.kind !== 'treatment') return record.name
+  const condition = record.condition?.trim()
+  const medication = treatmentMedication(record)
+  if (condition && medication) return `${condition} · ${medication}`
+  return condition || medication || record.name
+}
+
 export function inoculationFormToPayload(form: AnimalInoculationFormData) {
   const opt = (v: string) => (v.trim() === '' ? null : v.trim())
+  const condition = form.kind === 'treatment' ? opt(form.condition) : null
+  const medication = form.kind === 'treatment' ? opt(form.medication) : null
 
   return {
     kind: form.kind,
-    name: form.name.trim(),
+    name: form.kind === 'treatment' ? (medication ?? form.name.trim()) : form.name.trim(),
+    condition,
+    medication,
     administered_at: form.administered_at,
     next_due_at: opt(form.next_due_at),
     batch_number: opt(form.batch_number),

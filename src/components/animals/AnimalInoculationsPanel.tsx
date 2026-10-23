@@ -7,7 +7,9 @@ import {
   emptyInoculationForm,
   fetchAnimalInoculations,
   formatInoculationDate,
+  inoculationDisplayName,
   isInoculationOverdue,
+  treatmentMedication,
   updateAnimalInoculation,
 } from '../../lib/inoculations'
 import { fetchHealthOptions } from '../../lib/healthOptions'
@@ -38,9 +40,10 @@ export function AnimalInoculationsPanel({
   userId,
 }: AnimalInoculationsPanelProps) {
   const [records, setRecords] = useState<AnimalInoculation[]>([])
-  const [optionNames, setOptionNames] = useState<Record<HealthRecordKind, string[]>>({
-    vaccination: [],
-    treatment: [],
+  const [optionNames, setOptionNames] = useState({
+    vaccination: [] as string[],
+    condition: [] as string[],
+    medication: [] as string[],
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -56,7 +59,8 @@ export function AnimalInoculationsPanel({
       setRecords(nextRecords)
       setOptionNames({
         vaccination: options.filter((option) => option.kind === 'vaccination').map((option) => option.name),
-        treatment: options.filter((option) => option.kind === 'treatment').map((option) => option.name),
+        condition: options.filter((option) => option.kind === 'condition').map((option) => option.name),
+        medication: options.filter((option) => option.kind === 'medication').map((option) => option.name),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load health records')
@@ -89,7 +93,9 @@ export function AnimalInoculationsPanel({
         title="Treatments"
         itemLabel="Treatment"
         records={records.filter((record) => record.kind === 'treatment')}
-        optionNames={optionNames.treatment}
+        optionNames={[]}
+        conditionNames={optionNames.condition}
+        medicationNames={optionNames.medication}
         animalId={animalId}
         companyId={companyId}
         userId={userId}
@@ -100,12 +106,19 @@ export function AnimalInoculationsPanel({
   )
 }
 
+function withCurrentChoice(current: string, options: string[]) {
+  if (current && !options.includes(current)) return [current, ...options]
+  return options
+}
+
 function HealthSection({
   kind,
   title,
   itemLabel,
   records,
   optionNames,
+  conditionNames = [],
+  medicationNames = [],
   animalId,
   companyId,
   userId,
@@ -117,6 +130,8 @@ function HealthSection({
   itemLabel: string
   records: AnimalInoculation[]
   optionNames: string[]
+  conditionNames?: string[]
+  medicationNames?: string[]
   animalId: string
   companyId: string
   userId: string
@@ -131,16 +146,28 @@ function HealthSection({
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const noun = itemLabel.toLowerCase()
+  const isTreatment = kind === 'treatment'
 
-  const choices = useMemo(() => {
-    if (form.name && !optionNames.includes(form.name)) return [form.name, ...optionNames]
-    return optionNames
-  }, [form.name, optionNames])
+  const choices = useMemo(
+    () => withCurrentChoice(form.name, optionNames),
+    [form.name, optionNames],
+  )
+  const conditionChoices = useMemo(
+    () => withCurrentChoice(form.condition, conditionNames),
+    [form.condition, conditionNames],
+  )
+  const medicationChoices = useMemo(
+    () => withCurrentChoice(form.medication, medicationNames),
+    [form.medication, medicationNames],
+  )
 
   const filteredRecords = useMemo(
     () =>
       filterBySearch(records, deferredQuery, (record) => [
         record.name,
+        record.condition,
+        record.medication,
+        inoculationDisplayName(record),
         record.batch_number,
         record.dosage,
         record.administered_by,
@@ -179,6 +206,8 @@ function HealthSection({
     setForm({
       kind,
       name: record.name,
+      condition: record.condition ?? '',
+      medication: isTreatment ? treatmentMedication(record) : '',
       administered_at: record.administered_at,
       next_due_at: record.next_due_at ?? '',
       batch_number: record.batch_number ?? '',
@@ -192,7 +221,16 @@ function HealthSection({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim()) {
+    if (isTreatment) {
+      if (!form.condition.trim()) {
+        setError('Choose a condition or symptom.')
+        return
+      }
+      if (!form.medication.trim()) {
+        setError('Choose a medication.')
+        return
+      }
+    } else if (!form.name.trim()) {
       setError(`Choose a ${noun}.`)
       return
     }
@@ -223,7 +261,8 @@ function HealthSection({
   }
 
   const handleDelete = async (record: AnimalInoculation) => {
-    if (!window.confirm(`Delete ${noun} "${record.name}"?`)) return
+    const recordLabel = isTreatment ? inoculationDisplayName(record) : record.name
+    if (!window.confirm(`Delete ${noun} "${recordLabel}"?`)) return
     setError('')
     setSuccess('')
     try {
@@ -243,9 +282,57 @@ function HealthSection({
           {editingId ? `Edit ${noun}` : `Record ${noun}`}
         </h3>
         <p className="mt-1 text-sm text-soil-500">
-          Choose a {noun} from Configurations. The date defaults to today.
+          {isTreatment
+            ? 'Choose the condition or symptoms and the medication from Configurations. The date defaults to today.'
+            : `Choose a ${noun} from Configurations. The date defaults to today.`}
         </p>
         <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {isTreatment ? (
+            <>
+              <Select
+                label="Condition / symptoms"
+                id={`${kind}-condition`}
+                value={form.condition}
+                onChange={(e) => set('condition', e.target.value)}
+                required
+                disabled={conditionNames.length === 0 && !form.condition}
+              >
+                <option value="">
+                  {conditionNames.length === 0 ? 'No conditions configured' : 'Select condition or symptom'}
+                </option>
+                {conditionChoices.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Medication"
+                id={`${kind}-medication`}
+                value={form.medication}
+                onChange={(e) => set('medication', e.target.value)}
+                required
+                disabled={medicationNames.length === 0 && !form.medication}
+              >
+                <option value="">
+                  {medicationNames.length === 0 ? 'No medications configured' : 'Select medication'}
+                </option>
+                {medicationChoices.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+              {(conditionNames.length === 0 || medicationNames.length === 0) && (
+                <p className="text-sm text-soil-500 md:col-span-2">
+                  <Link to="/app/configurations" className="font-semibold text-pasture-800 hover:text-pasture-700">
+                    Add conditions and medications in Configurations
+                  </Link>
+                  .
+                </p>
+              )}
+            </>
+          ) : (
           <div className="md:col-span-2">
             <Select
               label={itemLabel}
@@ -271,6 +358,7 @@ function HealthSection({
               </p>
             )}
           </div>
+          )}
           <Input
             label="Administered date"
             type="date"
@@ -312,11 +400,21 @@ function HealthSection({
               onChange={(e) => set('notes', e.target.value)}
               rows={2}
               className="mt-1 w-full rounded-xl border border-field-dark bg-white px-3 py-2.5 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:text-sm"
-              placeholder="Site, reaction, booster schedule..."
+              placeholder={isTreatment ? 'Response, withdrawal, follow-up...' : 'Site, reaction, booster schedule...'}
             />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row md:col-span-2">
-            <Button type="submit" disabled={submitting || choices.length === 0} className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              disabled={
+                submitting ||
+                (isTreatment
+                  ? (conditionNames.length === 0 && !form.condition.trim()) ||
+                    (medicationNames.length === 0 && !form.medication.trim())
+                  : choices.length === 0)
+              }
+              className="w-full sm:w-auto"
+            >
               {submitting ? 'Saving...' : editingId ? `Update ${noun}` : `Save ${noun}`}
             </Button>
             {editingId && (
@@ -349,7 +447,11 @@ function HealthSection({
                 id={`${kind}-search`}
                 value={query}
                 onChange={setQuery}
-                placeholder={`Search ${noun}, batch, date, notes…`}
+                placeholder={
+                  isTreatment
+                    ? 'Search condition, medication, batch, date, notes…'
+                    : `Search ${noun}, batch, date, notes…`
+                }
                 resultCount={filteredRecords.length}
                 totalCount={records.length}
               />
@@ -362,9 +464,16 @@ function HealthSection({
                   {pagedRecords.map((record) => (
                     <MobileCard
                       key={record.id}
-                      title={record.name}
+                      title={
+                        isTreatment
+                          ? record.condition?.trim() || treatmentMedication(record) || record.name
+                          : record.name
+                      }
                       subtitle={formatInoculationDate(record.administered_at)}
                       fields={[
+                        ...(isTreatment
+                          ? [{ label: 'Medication', value: treatmentMedication(record) || '—' }]
+                          : []),
                         {
                           label: 'Next due',
                           value: record.next_due_at
@@ -400,7 +509,8 @@ function HealthSection({
                 <DesktopTable>
                   <thead>
                     <tr className="border-b border-field-dark text-soil-500">
-                      <th className="pb-2 font-medium">{itemLabel}</th>
+                      <th className="pb-2 font-medium">{isTreatment ? 'Condition' : itemLabel}</th>
+                      {isTreatment && <th className="pb-2 font-medium">Medication</th>}
                       <th className="pb-2 font-medium">Administered</th>
                       <th className="pb-2 font-medium">Next due</th>
                       <th className="pb-2 font-medium">Batch</th>
@@ -412,13 +522,23 @@ function HealthSection({
                     {pagedRecords.map((record) => (
                       <tr key={record.id} className="border-b border-field-dark/60">
                         <td className="py-3 font-medium text-soil-800">
-                          {record.name}
-                          {record.dosage && (
+                          {isTreatment ? record.condition?.trim() || '—' : record.name}
+                          {!isTreatment && record.dosage && (
                             <span className="mt-0.5 block text-xs font-normal text-soil-500">
                               {record.dosage}
                             </span>
                           )}
                         </td>
+                        {isTreatment && (
+                          <td className="py-3 font-medium text-soil-800">
+                            {treatmentMedication(record) || '—'}
+                            {record.dosage && (
+                              <span className="mt-0.5 block text-xs font-normal text-soil-500">
+                                {record.dosage}
+                              </span>
+                            )}
+                          </td>
+                        )}
                         <td className="py-3 text-soil-600">
                           {formatInoculationDate(record.administered_at)}
                         </td>

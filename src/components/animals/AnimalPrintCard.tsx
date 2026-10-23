@@ -9,7 +9,12 @@ import {
   formatTagNumber,
   getAnimalById,
 } from '../../lib/animals'
-import { fetchAnimalInoculations, formatInoculationDate, healthKindLabel } from '../../lib/inoculations'
+import {
+  fetchAnimalInoculations,
+  formatInoculationDate,
+  healthKindLabel,
+  inoculationDisplayName,
+} from '../../lib/inoculations'
 import { fetchAnimalPhotos, formatPhotoDate } from '../../lib/animalPhotos'
 import { fetchAnimalAchievements } from '../../lib/achievements'
 
@@ -152,7 +157,9 @@ export function AnimalPrintCard({ animal, herdAnimals, placeDisplay }: AnimalPri
                 {inoculations.map((record) => (
                   <tr key={record.id} className="border-b border-field-dark/50">
                     <td className="py-1.5 text-soil-600">{healthKindLabel(record.kind)}</td>
-                    <td className="py-1.5 font-medium text-soil-800">{record.name}</td>
+                    <td className="py-1.5 font-medium text-soil-800">
+                      {inoculationDisplayName(record)}
+                    </td>
                     <td className="py-1.5 text-soil-600">
                       {formatInoculationDate(record.administered_at)}
                     </td>

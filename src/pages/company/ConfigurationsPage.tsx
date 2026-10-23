@@ -1,10 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import type { HealthOption, HealthRecordKind } from '../../lib/types'
+import type { HealthOption, HealthOptionKind } from '../../lib/types'
 import { createHealthOption, deleteHealthOption, fetchHealthOptions } from '../../lib/healthOptions'
 import { fetchCompanyStudNumber, updateCompanyStudNumber } from '../../lib/companySettings'
 import { digitsOnly, padDigits } from '../../lib/animals'
-import { healthKindLabel } from '../../lib/inoculations'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
@@ -63,7 +62,7 @@ export function ConfigurationsPage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Configurations"
-        description="Set the farm stud number used on new kids, and manage vaccine and treatment names."
+        description="Set the farm stud number used on new kids, and manage vaccines, conditions, and medications."
       />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -98,21 +97,45 @@ export function ConfigurationsPage() {
           </form>
         </Card>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="lg:col-span-2">
+            <OptionList
+              kind="vaccination"
+              title="Vaccinations"
+              description="These names appear when you record a vaccination."
+              itemLabel="Vaccination"
+              placeholder="e.g. Pulpy kidney"
+              options={options.filter((option) => option.kind === 'vaccination')}
+              companyId={profile?.company_id ?? ''}
+              onChanged={loadOptions}
+              onMessage={setSuccess}
+              onError={setError}
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <h3 className="font-display text-lg font-semibold text-pasture-900">Treatments</h3>
+            <p className="mt-1 text-sm text-soil-500">
+              A treatment records the condition or symptoms, then the medication given. Manage both lists here.
+            </p>
+          </div>
           <OptionList
-            kind="vaccination"
-            title="Vaccinations"
-            description="These names appear when you record a vaccination."
-            options={options.filter((option) => option.kind === 'vaccination')}
+            kind="condition"
+            title="Conditions / symptoms"
+            description="These appear when you record a treatment."
+            itemLabel="Condition"
+            placeholder="e.g. Diarrhea"
+            options={options.filter((option) => option.kind === 'condition')}
             companyId={profile?.company_id ?? ''}
             onChanged={loadOptions}
             onMessage={setSuccess}
             onError={setError}
           />
           <OptionList
-            kind="treatment"
-            title="Treatments"
-            description="These names appear when you record a treatment."
-            options={options.filter((option) => option.kind === 'treatment')}
+            kind="medication"
+            title="Medications"
+            description="These appear when you record a treatment."
+            itemLabel="Medication"
+            placeholder="e.g. Dewormer"
+            options={options.filter((option) => option.kind === 'medication')}
             companyId={profile?.company_id ?? ''}
             onChanged={loadOptions}
             onMessage={setSuccess}
@@ -129,15 +152,19 @@ function OptionList({
   kind,
   title,
   description,
+  itemLabel,
+  placeholder,
   options,
   companyId,
   onChanged,
   onMessage,
   onError,
 }: {
-  kind: HealthRecordKind
+  kind: HealthOptionKind
   title: string
   description: string
+  itemLabel: string
+  placeholder: string
   options: HealthOption[]
   companyId: string
   onChanged: () => Promise<void>
@@ -146,7 +173,7 @@ function OptionList({
 }) {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
-  const label = healthKindLabel(kind).toLowerCase()
+  const label = itemLabel.toLowerCase()
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault()
@@ -158,7 +185,7 @@ function OptionList({
     try {
       await createHealthOption({ companyId, kind, name })
       setName('')
-      onMessage(`${healthKindLabel(kind)} added.`)
+      onMessage(`${itemLabel} added.`)
       await onChanged()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to add option'
@@ -197,7 +224,7 @@ function OptionList({
             label={`New ${label}`}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={kind === 'vaccination' ? 'e.g. Pulpy kidney' : 'e.g. Dewormer'}
+            placeholder={placeholder}
           />
         </div>
         <Button type="submit" disabled={saving || !name.trim()} className="w-full sm:w-auto">

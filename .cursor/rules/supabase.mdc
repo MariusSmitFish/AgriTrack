@@ -14,7 +14,7 @@ alwaysApply: false
 - Use helper functions `current_user_role()` and `current_user_company_id()` for policies
 - Animal photos: `animal_photos` + private Storage bucket `animal-photos` (path `{company_id}/{animal_id}/{id}.ext`)
 - Locations → encampments hierarchy; animals link via `encampment_id`. Farm admins manage locations/encampments; all farm users can read and assign animals
-- Animal inoculations: `animal_inoculations` (name, administered_at, optional next_due_at / batch / dosage)
+- Animal inoculations: `animal_inoculations` (kind vaccination or treatment; vaccinations use `name`; treatments use `condition` + `medication`, with `name` set to the medication; optional next_due_at / batch / dosage). Option lists live in `health_options` (`vaccination`, `condition`, `medication`)
 - Demo tools (superadmin RPCs): `seed_farm_demo_data`, `clear_farm_demo_data`, `reset_farm_data` — livestock/locations only; `is_demo` flag marks seeded rows
 
 ## Auth & profiles

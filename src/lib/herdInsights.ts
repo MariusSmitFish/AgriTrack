@@ -1,7 +1,7 @@
 import type { Animal, AnimalInoculation } from './types'
 import { animalLabel } from './animals'
 import { animalPlaceLabel } from './locations'
-import { todayDateValue } from './inoculations'
+import { inoculationDisplayName, todayDateValue } from './inoculations'
 
 export function addDaysToDateValue(dateValue: string, days: number) {
   const date = new Date(`${dateValue}T00:00:00`)
@@ -87,7 +87,7 @@ export function buildInoculationAlerts(
       animalId: record.animal_id,
       animalLabel: animal ? animalLabel(animal) : 'Unknown animal',
       kind: record.kind === 'treatment' ? 'treatment' : 'vaccination',
-      name: record.name,
+      name: inoculationDisplayName(record),
       nextDueAt: record.next_due_at,
       overdue: record.next_due_at < today,
     }

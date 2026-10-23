@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
-import type { HealthOption, HealthRecordKind } from './types'
+import type { HealthOption, HealthOptionKind } from './types'
 
-export async function fetchHealthOptions(companyId: string, kind?: HealthRecordKind) {
+export async function fetchHealthOptions(companyId: string, kind?: HealthOptionKind) {
   let query = supabase
     .from('health_options')
     .select('*')
@@ -17,7 +17,7 @@ export async function fetchHealthOptions(companyId: string, kind?: HealthRecordK
 
 export async function createHealthOption(params: {
   companyId: string
-  kind: HealthRecordKind
+  kind: HealthOptionKind
   name: string
 }) {
   const name = params.name.trim()
