@@ -7,12 +7,32 @@
   to = "/index.html"
   status = 200
 
-# HTML and the service worker must revalidate, or phones keep the previous app.
-# Fingerprinted files in /assets stay cached.
+# HTML and the service worker must not be stored, or the installed app
+# keeps the previous build after a deploy. Fingerprinted files in /assets stay cached.
 [[headers]]
   for = "/*"
   [headers.values]
     Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]
   for = "/assets/*"

@@ -41,12 +41,29 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/index.html',
+        // Keep hashed JS and CSS. Do not precache HTML: a saved index.html
+        // is what makes the installed app keep showing the previous build.
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        navigateFallback: null,
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-pages',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 16,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
