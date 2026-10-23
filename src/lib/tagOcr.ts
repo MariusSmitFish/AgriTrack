@@ -27,27 +27,32 @@ let readerPromise: ReturnType<typeof createWorker> | null = null
 
 function getReader() {
   if (!readerPromise) {
-    readerPromise = createWorker('eng', OEM.LSTM_ONLY, undefined, {
+    const pending = createWorker('eng', OEM.LSTM_ONLY, undefined, {
       load_system_dawg: '0',
       load_freq_dawg: '0',
       load_unambig_dawg: '0',
       load_punc_dawg: '0',
       load_number_dawg: '0',
       load_bigram_dawg: '0',
+    }).then(async (worker) => {
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789-',
+        user_defined_dpi: '300',
+        tessedit_enable_dict_correction: '0',
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      })
+      return worker
     })
-      .then(async (worker) => {
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789-',
-          user_defined_dpi: '300',
-          tessedit_enable_dict_correction: '0',
-          tessedit_pageseg_mode: PSM.SINGLE_LINE,
-        })
-        return worker
-      })
-      .catch((error: unknown) => {
-        readerPromise = null
-        throw error
-      })
+    const timeout = new Promise<never>((_, reject) => {
+      window.setTimeout(
+        () => reject(new Error('The number reader did not start. Check your connection and try again.')),
+        20000,
+      )
+    })
+    readerPromise = Promise.race([pending, timeout]).catch((error: unknown) => {
+      readerPromise = null
+      throw error
+    })
   }
   return readerPromise
 }
@@ -415,8 +420,10 @@ function visibleCrop(video: HTMLVideoElement) {
   }
 }
 
-function prepareFrames(video: HTMLVideoElement) {
-  const crop = visibleCrop(video)
+function prepareFrames(
+  source: CanvasImageSource,
+  crop: { x: number; y: number; w: number; h: number },
+) {
   const targetHeight = 300
   const scale = targetHeight / crop.h
   const width = Math.max(1, Math.round(crop.w * scale))
@@ -428,7 +435,7 @@ function prepareFrames(video: HTMLVideoElement) {
   if (!ctx) return null
   ctx.imageSmoothingEnabled = scale < 1
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(video, crop.x, crop.y, crop.w, crop.h, 0, 0, width, height)
+  ctx.drawImage(source, crop.x, crop.y, crop.w, crop.h, 0, 0, width, height)
 
   const gray = sharpen(stretchContrast(luminance(ctx.getImageData(0, 0, width, height))), width, height)
   let binary = adaptiveThreshold(gray, width, height)
@@ -711,14 +718,7 @@ function consider(best: Reading, next: Reading) {
   return best
 }
 
-/**
- * Read a handwritten year–number tag (for example 01-1000) from the camera frame.
- * The viewfinder crop is cleaned up, then digits are read one at a time and as a line.
- */
-export async function scanTagFromVideo(video: HTMLVideoElement) {
-  if (!video.videoWidth || !video.videoHeight) return { tag: '', previewUrl: '' }
-  const frames = prepareFrames(video)
-  if (!frames) return { tag: '', previewUrl: '' }
+async function readPreparedFrames(frames: NonNullable<ReturnType<typeof prepareFrames>>) {
   const worker = await getReader()
   let best = await readGlyphs(worker, frames.binary, frames.width, frames.height)
   if (scoreReading(best.tag, best.confidence) < 170) {
@@ -731,4 +731,23 @@ export async function scanTagFromVideo(video: HTMLVideoElement) {
     best = consider(best, await readLine(worker, frames.thickCanvas, PSM.SINGLE_LINE))
   }
   return { tag: scoreReading(best.tag, best.confidence) > 0 ? best.tag : '', previewUrl: frames.previewUrl }
+}
+
+/**
+ * Read a handwritten year–number tag (for example 01-1000) from the camera frame.
+ * The viewfinder crop is cleaned up, then digits are read one at a time and as a line.
+ */
+export async function scanTagFromVideo(video: HTMLVideoElement) {
+  if (!video.videoWidth || !video.videoHeight) return { tag: '', previewUrl: '' }
+  const frames = prepareFrames(video, visibleCrop(video))
+  if (!frames) return { tag: '', previewUrl: '' }
+  return readPreparedFrames(frames)
+}
+
+/** Read a tag from a photo when the live camera cannot be used. */
+export async function scanTagFromImage(source: CanvasImageSource, width: number, height: number) {
+  if (!width || !height) return { tag: '', previewUrl: '' }
+  const frames = prepareFrames(source, { x: 0, y: 0, w: width, h: height })
+  if (!frames) return { tag: '', previewUrl: '' }
+  return readPreparedFrames(frames)
 }

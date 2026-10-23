@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { preloadTagReader, scanTagFromVideo, TAG_FRAME } from '../../lib/tagOcr'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { cameraErrorMessage, requestTagCamera } from '../../lib/tagCamera'
+import { preloadTagReader, scanTagFromImage, scanTagFromVideo, TAG_FRAME } from '../../lib/tagOcr'
 import { Button } from './Button'
 import { Input } from './Input'
 
@@ -7,6 +8,7 @@ interface TagScanDialogProps {
   open: boolean
   title?: string
   initialValue?: string
+  cameraPromise?: Promise<MediaStream> | null
   onClose: () => void
   onApply: (value: string) => void
 }
@@ -15,6 +17,7 @@ export function TagScanDialog({
   open,
   title = 'Scan tag',
   initialValue = '',
+  cameraPromise = null,
   onClose,
   onApply,
 }: TagScanDialogProps) {
@@ -22,11 +25,15 @@ export function TagScanDialog({
   const [preview, setPreview] = useState<string | null>(null)
   const [ocrError, setOcrError] = useState('')
   const [draft, setDraft] = useState(initialValue)
+  const [cameraReady, setCameraReady] = useState(false)
+  const [retakePromise, setRetakePromise] = useState<Promise<MediaStream> | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const cancelled = useRef(false)
   const cameraRequest = useRef(0)
+  const activeCamera = retakePromise ?? cameraPromise
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -34,49 +41,23 @@ export function TagScanDialog({
     if (videoRef.current) videoRef.current.srcObject = null
   }, [])
 
-  const startCamera = useCallback(async () => {
-    const request = ++cameraRequest.current
-    setOcrError('')
-    stopCamera()
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-        audio: false,
-      })
-      if (cancelled.current || request !== cameraRequest.current) {
-        stream.getTracks().forEach((track) => track.stop())
-        return
-      }
-      streamRef.current = stream
-      const track = stream.getVideoTracks()[0]
-      const focus = track?.getCapabilities?.() as { focusMode?: string[] } | undefined
-      if (track && focus?.focusMode?.includes('continuous')) {
-        try {
-          await track.applyConstraints({
-            advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
-          })
-        } catch {
-          // Continuous focus is optional; the still frame is still usable.
-        }
-      }
-      if (request !== cameraRequest.current) {
-        stream.getTracks().forEach((track) => track.stop())
-        return
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-    } catch {
-      if (!cancelled.current && request === cameraRequest.current) {
-        setOcrError('Camera access denied or unavailable. Enter the tag manually.')
-      }
+  const applyReading = (result: { tag: string; previewUrl: string }) => {
+    if (!result.previewUrl) {
+      setOcrError('Could not capture image.')
+      return
     }
-  }, [stopCamera])
+    setPreview(result.previewUrl)
+    stopCamera()
+    const digits = result.tag.replace(/\D/g, '')
+    if (/^\d{2}-\d{4}$/.test(result.tag)) {
+      setDraft(result.tag)
+    } else if (digits.length >= 3) {
+      setDraft(result.tag)
+      setOcrError('Check the digits. Part of the handwritten number was unclear.')
+    } else {
+      setOcrError('Could not read the handwritten numbers. Fill the box, hold steady, and try again, or type the tag.')
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -85,50 +66,105 @@ export function TagScanDialog({
     setPreview(null)
     setOcrError('')
     setScanning(false)
+    setCameraReady(false)
+    setRetakePromise(null)
+  }, [open, initialValue])
+
+  useEffect(() => {
+    if (!open || !activeCamera) {
+      stopCamera()
+      return
+    }
+    cancelled.current = false
+    const request = ++cameraRequest.current
+    setCameraReady(false)
+    setOcrError('')
     preloadTagReader()
-    startCamera()
+    stopCamera()
+
+    activeCamera
+      .then(async (stream) => {
+        if (cancelled.current || request !== cameraRequest.current) return
+        streamRef.current = stream
+        const track = stream.getVideoTracks()[0]
+        const focus = track?.getCapabilities?.() as { focusMode?: string[] } | undefined
+        if (track && focus?.focusMode?.includes('continuous')) {
+          try {
+            await track.applyConstraints({
+              advanced: [{ focusMode: 'continuous' } as unknown as MediaTrackConstraintSet],
+            })
+          } catch {
+            // Continuous focus is optional; the still frame is still usable.
+          }
+        }
+        const video = videoRef.current
+        if (!video || cancelled.current || request !== cameraRequest.current) return
+        video.srcObject = stream
+        video.muted = true
+        if (video.readyState < 2) {
+          await new Promise<void>((resolve) => {
+            const done = () => {
+              video.removeEventListener('loadeddata', done)
+              resolve()
+            }
+            video.addEventListener('loadeddata', done)
+            window.setTimeout(done, 2500)
+          })
+        }
+        await video.play().catch(() => undefined)
+        if (!cancelled.current && request === cameraRequest.current) setCameraReady(true)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled.current && request === cameraRequest.current) {
+          setOcrError(cameraErrorMessage(error))
+        }
+      })
+
     return () => {
       cancelled.current = true
       cameraRequest.current += 1
-      stopCamera()
     }
-  }, [open, initialValue, startCamera, stopCamera])
+  }, [open, activeCamera, stopCamera])
 
   if (!open) return null
 
-  const captureAndScan = async () => {
-    const video = videoRef.current
-    if (!video || !video.videoWidth) {
-      setOcrError('Camera not ready. Try again or enter manually.')
-      return
-    }
-
+  const readTag = async (work: () => Promise<{ tag: string; previewUrl: string }>) => {
     setScanning(true)
     setOcrError('')
-
     try {
-      const result = await scanTagFromVideo(video)
+      const result = await work()
       if (cancelled.current) return
-      if (!result.previewUrl) {
-        setOcrError('Could not capture image.')
-        return
+      applyReading(result)
+    } catch (error) {
+      if (!cancelled.current) {
+        setOcrError(error instanceof Error ? error.message : 'Could not read the tag. Enter the number manually.')
       }
-      setPreview(result.previewUrl)
-      stopCamera()
-      const digits = result.tag.replace(/\D/g, '')
-      if (/^\d{2}-\d{4}$/.test(result.tag)) {
-        setDraft(result.tag)
-      } else if (digits.length >= 3) {
-        setDraft(result.tag)
-        setOcrError('Check the digits. Part of the handwritten number was unclear.')
-      } else {
-        setOcrError('Could not read the handwritten numbers. Fill the box, hold steady, and try again, or type the tag.')
-      }
-    } catch {
-      if (!cancelled.current) setOcrError('Could not read the tag. Enter the number manually.')
     } finally {
       if (!cancelled.current) setScanning(false)
     }
+  }
+
+  const captureAndScan = () => {
+    const video = videoRef.current
+    if (!video || !video.videoWidth) {
+      setOcrError('Camera not ready. Use Take photo, or try again.')
+      return
+    }
+    void readTag(() => scanTagFromVideo(video))
+  }
+
+  const onPhoto = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    void readTag(async () => {
+      const bitmap = await createImageBitmap(file)
+      try {
+        return await scanTagFromImage(bitmap, bitmap.width, bitmap.height)
+      } finally {
+        bitmap.close()
+      }
+    })
   }
 
   const close = () => {
@@ -191,11 +227,30 @@ export function TagScanDialog({
             onChange={(e) => setDraft(e.target.value)}
             placeholder="01-1000"
           />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={onPhoto}
+          />
           <div className="flex flex-col gap-2 sm:flex-row">
             {!preview ? (
-              <Button type="button" className="w-full" onClick={captureAndScan} disabled={scanning}>
-                {scanning ? 'Reading numbers...' : 'Capture & read'}
-              </Button>
+              <>
+                <Button type="button" className="w-full" onClick={captureAndScan} disabled={scanning || !cameraReady}>
+                  {scanning ? 'Reading numbers...' : 'Capture & read'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={scanning}
+                >
+                  Take photo
+                </Button>
+              </>
             ) : (
               <>
                 <Button
@@ -205,10 +260,20 @@ export function TagScanDialog({
                   onClick={() => {
                     setPreview(null)
                     setOcrError('')
-                    startCamera()
+                    setCameraReady(false)
+                    setRetakePromise(requestTagCamera())
                   }}
                 >
-                  Retake photo
+                  Retake
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={scanning}
+                >
+                  Take photo
                 </Button>
                 <Button
                   type="button"
@@ -223,6 +288,9 @@ export function TagScanDialog({
               </>
             )}
           </div>
+          {!preview && !cameraReady && !ocrError && (
+            <p className="text-sm text-soil-500">Starting camera... You can also take a photo.</p>
+          )}
         </div>
       </div>
     </div>
