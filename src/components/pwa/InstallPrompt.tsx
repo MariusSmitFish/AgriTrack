@@ -32,6 +32,7 @@ export function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
   const [iosTip, setIosTip] = useState(false)
+  const [androidFallback, setAndroidFallback] = useState(false)
   const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
@@ -57,10 +58,26 @@ export function InstallPrompt() {
       localStorage.setItem(DISMISS_KEY, '1')
     })
 
+    // Fallback for browsers that don't fire beforeinstallprompt (MIUI, some Android browsers)
+    // Show manual instructions after 3 seconds if event hasn't fired
+    const fallbackTimer = setTimeout(() => {
+      if (!deferred && !isIos()) {
+        const isAndroid = /android/i.test(navigator.userAgent)
+        const isChrome = /chrome/i.test(navigator.userAgent) && !/edg/i.test(navigator.userAgent)
+        
+        // Show fallback for Android devices (includes MIUI/REDMI)
+        if (isAndroid && isChrome) {
+          setAndroidFallback(true)
+          setVisible(true)
+        }
+      }
+    }, 3000)
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+      clearTimeout(fallbackTimer)
     }
-  }, [])
+  }, [deferred])
 
   if (!visible) return null
 
@@ -94,6 +111,12 @@ export function InstallPrompt() {
               On iPhone: tap <span className="font-semibold">Share</span>, then{' '}
               <span className="font-semibold">Add to Home Screen</span>.
             </p>
+          ) : androidFallback ? (
+            <p className="mt-0.5 text-xs leading-snug text-soil-600 sm:mt-1 sm:text-sm">
+              Tap the <span className="font-semibold">three-dot menu (⋮)</span> at the top, then select{' '}
+              <span className="font-semibold">"Add to Home screen"</span> or{' '}
+              <span className="font-semibold">"Install app"</span>.
+            </p>
           ) : (
             <p className="mt-0.5 text-xs leading-snug text-soil-600 sm:mt-1 sm:text-sm">
               Add to your home screen for faster access in the field.
@@ -109,7 +132,7 @@ export function InstallPrompt() {
           >
             Not now
           </Button>
-          {!iosTip && (
+          {!iosTip && !androidFallback && (
             <Button
               type="button"
               className="min-h-10 flex-1 px-3 py-2 text-xs sm:flex-none"
