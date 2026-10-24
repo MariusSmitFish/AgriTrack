@@ -40,6 +40,8 @@ export function AnimalsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
+  const [hideStamboek, setHideStamboek] = useState(false)
+  const [deletingStamboek, setDeletingStamboek] = useState(false)
   const deferredQuery = useDeferredValue(query)
 
   const downloadTemplate = async () => {
@@ -87,19 +89,28 @@ export function AnimalsPage() {
       legacyLocation: animal.location,
     })
 
+  // Apply stamboek filter first
+  const baseAnimals = useMemo(() => {
+    return hideStamboek ? animals.filter(a => a.status !== 'stamboek') : animals
+  }, [animals, hideStamboek])
+
+  const stamboekCount = useMemo(() => {
+    return animals.filter(a => a.status === 'stamboek').length
+  }, [animals])
+
   const exactTag = exactTagQuery(deferredQuery)
   const tagMatches = useMemo(() => {
     if (!exactTag) return []
-    return animalsWithExactTag(animals, exactTag).sort((a, b) =>
+    return animalsWithExactTag(baseAnimals, exactTag).sort((a, b) =>
       (a.stud_number ?? '').localeCompare(b.stud_number ?? ''),
     )
-  }, [animals, exactTag])
+  }, [baseAnimals, exactTag])
 
   const filteredAnimals = useMemo(
     () =>
       exactTag
         ? tagMatches
-        : filterBySearch(animals, deferredQuery, (animal) => [
+        : filterBySearch(baseAnimals, deferredQuery, (animal) => [
         formatAnimalId(animal),
         formatTagNumber(animal),
         animal.stud_number,
@@ -120,7 +131,7 @@ export function AnimalsPage() {
         parentLabel(animal.sire_id),
         animal.notes,
       ]),
-    [animals, deferredQuery, exactTag, tagMatches],
+    [baseAnimals, deferredQuery, exactTag, tagMatches],
   )
 
   const {
@@ -195,6 +206,43 @@ export function AnimalsPage() {
       setError(err instanceof Error ? err.message : 'Failed to delete animal')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  const handleDeleteAllStamboek = async () => {
+    const count = stamboekCount
+    if (count === 0) {
+      setError('No stamboek animals to delete.')
+      return
+    }
+
+    if (
+      !window.confirm(
+        `Delete all ${count} stamboek ${count === 1 ? 'animal' : 'animals'}? This action cannot be undone. Photos, documents, health records, and show results will also be removed.`,
+      )
+    ) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setDeletingStamboek(true)
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('animals')
+        .delete()
+        .eq('company_id', profile!.company_id!)
+        .eq('status', 'stamboek')
+
+      if (deleteError) throw deleteError
+
+      setAnimals((prev) => prev.filter((a) => a.status !== 'stamboek'))
+      setSuccess(`Deleted ${count} stamboek ${count === 1 ? 'animal' : 'animals'}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete stamboek animals')
+    } finally {
+      setDeletingStamboek(false)
     }
   }
 
@@ -280,9 +328,37 @@ export function AnimalsPage() {
               onChange={setQuery}
               placeholder="Search animal ID, tag, name, breed, location, status…"
               resultCount={filteredAnimals.length}
-              totalCount={animals.length}
+              totalCount={baseAnimals.length}
               enableTagScan
             />
+
+            {stamboekCount > 0 && (
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-2 text-sm text-soil-700">
+                  <input
+                    type="checkbox"
+                    checked={hideStamboek}
+                    onChange={(e) => setHideStamboek(e.target.checked)}
+                    className="h-4 w-4 rounded border-field-dark text-pasture-700 focus:ring-2 focus:ring-pasture-500"
+                  />
+                  <span>
+                    Hide stamboek animals ({stamboekCount})
+                  </span>
+                </label>
+
+                {profile?.role === 'company_admin' && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full text-red-700 hover:bg-red-50 hover:text-red-800 sm:w-auto"
+                    onClick={handleDeleteAllStamboek}
+                    disabled={deletingStamboek}
+                  >
+                    {deletingStamboek ? 'Deleting...' : `Delete all ${stamboekCount} stamboek`}
+                  </Button>
+                )}
+              </div>
+            )}
 
             {exactTag && tagMatches.length > 1 && (
               <div className="mt-4">
