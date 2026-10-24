@@ -193,6 +193,7 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
         // Set expected field count from first record (header)
         if (records.length === 0 && cleanFields.length > 10) {
           expectedFieldCount = cleanFields.length
+          console.log('Expected field count set to:', expectedFieldCount)
         }
         
         // Only accept record if it has the exact field count as header
@@ -206,9 +207,13 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
           currentRecordLines = []
         } else {
           // Not the right field count yet
+          if (records.length <= 2) {
+            console.log(`Record ${records.length}: Got ${cleanFields.length} fields, expected ${expectedFieldCount}. Lines accumulated: ${currentRecordLines.length}`)
+          }
           // Keep accumulating lines unless we've accumulated too many
           if (currentRecordLines.length > 10) {
             // Safety limit: give up and reset after 10 lines
+            console.warn(`Gave up on record after 10 lines. Field count: ${cleanFields.length}, expected: ${expectedFieldCount}`)
             currentRecordLines = []
           }
           // else: keep accumulating, multi-line records need more lines
@@ -242,8 +247,8 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
     })
   }
   
-  // Use ANIMAL_NUMBER for main animal ID (has BBG prefix like BBGF1610170092)
-  // Note: NID column contains internal IDs without BBG prefix, so we don't use it
+  // Try both NID and ANIMAL_NUMBER columns to see which has the BBG prefix
+  const nidIdx = findColumn('NID')
   const animalNumberIdx = findColumn('ANIMAL_NUMBER')
   const sexIdx = findColumn('SEX')
   const birthDateIdx = findColumn('BIRTH_DTM')
@@ -253,6 +258,7 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   
   // Debug: log column indices and first few header values
   console.log('Column indices found:', {
+    nidIdx,
     animalNumberIdx,
     sexIdx,
     birthDateIdx,
@@ -261,14 +267,47 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
     headerSample: header.slice(0, 15).map((h, i) => `${i}:${h}`)
   })
   
-  if (animalNumberIdx === -1 || sexIdx === -1) return rows
+  // Need at least one animal ID column and sex
+  if ((nidIdx === -1 && animalNumberIdx === -1) || sexIdx === -1) return rows
+  
+  // Determine which column to use for animal ID by checking first data row
+  let useNidColumn = false
+  if (records.length > headerIndex + 1) {
+    const firstDataRow = records[headerIndex + 1]
+    const nidValue = nidIdx >= 0 ? firstDataRow[nidIdx] : ''
+    const animalNumberValue = animalNumberIdx >= 0 ? firstDataRow[animalNumberIdx] : ''
+    
+    // Check which one has the BBG prefix
+    const nidHasPrefix = /^BBG[MF]?/i.test(nidValue)
+    const animalNumberHasPrefix = /^BBG[MF]?/i.test(animalNumberValue)
+    
+    console.log('First row values:', {
+      nidValue: nidValue?.substring(0, 20),
+      animalNumberValue: animalNumberValue?.substring(0, 20),
+      nidHasPrefix,
+      animalNumberHasPrefix
+    })
+    
+    // Prefer the one with BBG prefix
+    if (nidHasPrefix && !animalNumberHasPrefix) {
+      useNidColumn = true
+    } else if (!nidHasPrefix && animalNumberHasPrefix) {
+      useNidColumn = false
+    } else if (nidIdx >= 0) {
+      // If both or neither have prefix, prefer NID
+      useNidColumn = true
+    }
+  }
+  
+  const animalIdIdx = useNidColumn ? nidIdx : animalNumberIdx
+  console.log('Using column:', useNidColumn ? 'NID' : 'ANIMAL_NUMBER', 'at index', animalIdIdx)
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(animalNumberIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
+    if (record.length <= Math.max(animalIdIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
     
-    const animalNumber = record[animalNumberIdx]?.trim()
+    const animalNumber = record[animalIdIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
     
     // Debug: log first record's fields
@@ -283,7 +322,7 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
         12: record[12],
         13: record[13],
       })
-      console.log('Extracted animal number from index', animalNumberIdx, ':', animalNumber)
+      console.log('Extracted animal number from index', animalIdIdx, ':', animalNumber)
     }
     
     rows.push({
