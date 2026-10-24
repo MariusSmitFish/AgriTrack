@@ -251,6 +251,16 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   const damNidIdx = findColumn('DAM_NID')
   const sireNidIdx = findColumn('SIRE_NID')
   
+  // Debug: log column indices and first few header values
+  console.log('Column indices found:', {
+    animalNumberIdx,
+    sexIdx,
+    birthDateIdx,
+    damNidIdx,
+    sireNidIdx,
+    headerSample: header.slice(0, 15).map((h, i) => `${i}:${h}`)
+  })
+  
   if (animalNumberIdx === -1 || sexIdx === -1) return rows
   
   // Parse data rows
@@ -260,6 +270,21 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
     
     const animalNumber = record[animalNumberIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
+    
+    // Debug: log first record's fields
+    if (rows.length === 0) {
+      console.log('First record sample (indices 6-13):', {
+        6: record[6],
+        7: record[7],
+        8: record[8],
+        9: record[9],
+        10: record[10],
+        11: record[11],
+        12: record[12],
+        13: record[13],
+      })
+      console.log('Extracted animal number from index', animalNumberIdx, ':', animalNumber)
+    }
     
     rows.push({
       animalNumber,
