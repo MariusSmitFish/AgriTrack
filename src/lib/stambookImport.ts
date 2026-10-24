@@ -195,16 +195,23 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
           expectedFieldCount = cleanFields.length
         }
         
-        // Only accept record if it has enough fields
-        // First record sets the standard, subsequent records should match (or be close)
-        if (cleanFields.length > 1) {
-          if (records.length === 0 || cleanFields.length >= expectedFieldCount * 0.8) {
-            records.push(cleanFields)
+        // Only accept record if it has the exact field count as header
+        if (records.length === 0 && cleanFields.length > 10) {
+          // Always accept header
+          records.push(cleanFields)
+          currentRecordLines = []
+        } else if (cleanFields.length === expectedFieldCount) {
+          // Only accept data rows with exact match
+          records.push(cleanFields)
+          currentRecordLines = []
+        } else {
+          // Not the right field count yet
+          // Keep accumulating lines unless we've accumulated too many
+          if (currentRecordLines.length > 10) {
+            // Safety limit: give up and reset after 10 lines
             currentRecordLines = []
           }
-          // else: not enough fields yet, keep accumulating lines (don't reset)
-        } else {
-          currentRecordLines = []
+          // else: keep accumulating, multi-line records need more lines
         }
       }
       // else: odd quote count, keep accumulating
