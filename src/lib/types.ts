@@ -1,7 +1,7 @@
 export type UserRole = 'superadmin' | 'company_admin' | 'company_user'
 
 export type AnimalSex = 'male' | 'female' | 'unknown'
-export type AnimalStatus = 'active' | 'sold' | 'deceased' | 'transferred'
+export type AnimalStatus = 'active' | 'sold' | 'deceased' | 'transferred' | 'stamboek'
 export type StudbookSchedule = 'Base' | 'A' | 'B' | 'SP'
 export type AnimalSelection = 'F' | 'FC' | 'FR' | 'FT' | 'Stud'
 

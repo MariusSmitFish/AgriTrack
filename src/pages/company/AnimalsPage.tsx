@@ -230,6 +230,11 @@ export function AnimalsPage() {
               Upload Excel
             </Button>
           </Link>
+          <Link to="/app/animals/import-stambook" className="block w-full sm:w-auto">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              Import Stambook
+            </Button>
+          </Link>
           <Link to="/app/family-trees" className="block w-full sm:w-auto">
             <Button variant="secondary" className="w-full sm:w-auto">
               Family tree

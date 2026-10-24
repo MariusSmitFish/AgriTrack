@@ -34,7 +34,7 @@ export const animalImportColumns = [
   { header: 'Studbook schedule', field: 'studbook_schedule', width: 20, hint: 'Base, A, B, or SP.' },
   { header: 'Selection', field: 'selection', width: 14, hint: 'F, FC, FR, FT, or Stud.' },
   { header: 'Electronic ID', field: 'electronic_id', width: 18, hint: 'Optional ear-tag chip number.' },
-  { header: 'Status', field: 'status', width: 14, hint: 'Active, Sold, Deceased, or Transferred. Blank becomes Active.' },
+  { header: 'Status', field: 'status', width: 14, hint: 'Active, Sold, Deceased, Transferred, or Stamboek. Blank becomes Active.' },
   { header: 'Location', field: 'location', width: 20, hint: 'Must match a location already on the farm.' },
   { header: 'Camp', field: 'camp', width: 18, hint: 'Must match a camp at that location.' },
   { header: 'Dam tag', field: 'dam_tag', width: 16, hint: 'Mother tag, for example 01-1000. She can be in this file.' },
@@ -102,6 +102,7 @@ const STATUS_VALUES: Record<string, AnimalStatus> = {
   deceased: 'deceased',
   dead: 'deceased',
   transferred: 'transferred',
+  stamboek: 'stamboek',
 }
 
 const SCHEDULE_VALUES: Record<string, StudbookSchedule> = {
@@ -124,7 +125,7 @@ const LIST_COLUMNS: { field: ImportField; formula: string }[] = [
   { field: 'sex', formula: '"Female,Male,Unknown"' },
   { field: 'studbook_schedule', formula: '"Base,A,B,SP"' },
   { field: 'selection', formula: '"F,FC,FR,FT,Stud"' },
-  { field: 'status', formula: '"Active,Sold,Deceased,Transferred"' },
+  { field: 'status', formula: '"Active,Sold,Deceased,Transferred,Stamboek"' },
 ]
 
 export interface AnimalImportContext {
@@ -350,7 +351,7 @@ function draftFromCells(
 
   const sex = lookupChoice(text('sex'), SEX_VALUES, 'Sex', 'Female, Male, or Unknown')
   const species = lookupChoice(text('species'), SPECIES_VALUES, 'Species', 'Goat, Cattle, Sheep, or Other')
-  const status = lookupChoice(text('status'), STATUS_VALUES, 'Status', 'Active, Sold, Deceased, or Transferred')
+  const status = lookupChoice(text('status'), STATUS_VALUES, 'Status', 'Active, Sold, Deceased, Transferred, or Stamboek')
   const schedule = lookupChoice(text('studbook_schedule'), SCHEDULE_VALUES, 'Studbook schedule', 'Base, A, B, or SP')
   const selection = lookupChoice(text('selection'), SELECTION_VALUES, 'Selection', 'F, FC, FR, FT, or Stud')
   for (const choice of [sex, species, status, schedule, selection]) {
