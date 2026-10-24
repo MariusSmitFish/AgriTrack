@@ -35,6 +35,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
+import { CollapsibleCard, CollapsibleSection } from '../../components/ui/CollapsibleCard'
 import { PageHeader } from '../../components/layout/AppShell'
 import { formatTagNumber } from '../../lib/animals'
 
@@ -436,12 +437,12 @@ export function AnimalDetailPage() {
 
       <AnimalPrintCard animal={animal} herdAnimals={herdAnimals} placeDisplay={placeDisplay} />
 
-      <Card className="print:hidden">
-        <h3 className="font-display font-semibold text-pasture-900">Animal ID</h3>
-        <p className="mt-1 text-sm text-soil-500">
-          Stud, year, and number can be changed. The tag number follows the year and number.
-        </p>
-        <form onSubmit={handleSaveIdentity} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <CollapsibleCard
+        title="Animal ID"
+        description="Stud, year, and number can be changed. The tag number follows the year and number."
+        className="print:hidden"
+      >
+        <form onSubmit={handleSaveIdentity} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Input
             label="Stud number"
             inputMode="numeric"
@@ -497,15 +498,15 @@ export function AnimalDetailPage() {
             </Button>
           </div>
         </form>
-      </Card>
+      </CollapsibleCard>
 
       {details && (
-        <Card className="print:hidden">
-          <h3 className="font-display font-semibold text-pasture-900">Details</h3>
-          <p className="mt-1 text-sm text-soil-500">
-            Name, studbook, sex, status, and the other basic fields for this animal.
-          </p>
-          <form onSubmit={handleSaveDetails} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <CollapsibleCard
+          title="Details"
+          description="Name, studbook, sex, status, and the other basic fields for this animal."
+          className="print:hidden"
+        >
+          <form onSubmit={handleSaveDetails} className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input
               label="Name or nickname"
               value={details.name}
@@ -621,15 +622,15 @@ export function AnimalDetailPage() {
               </Button>
             </div>
           </form>
-        </Card>
+        </CollapsibleCard>
       )}
 
-      <Card className="print:hidden">
-        <h3 className="font-display font-semibold text-pasture-900">Pedigree</h3>
-        <p className="mt-1 text-sm text-soil-500">
-          Link mother and father. You can enter animal IDs even if they don't exist yet.
-        </p>
-        <form onSubmit={handleSavePedigree} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <CollapsibleCard
+        title="Pedigree"
+        description="Link mother and father. You can enter animal IDs even if they don't exist yet."
+        className="print:hidden"
+      >
+        <form onSubmit={handleSavePedigree} className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ParentPicker
             id="edit-mother"
             label="Mother"
@@ -668,14 +669,14 @@ export function AnimalDetailPage() {
             </Button>
           </div>
         </form>
-      </Card>
+      </CollapsibleCard>
 
-      <Card className="print:hidden">
-        <h3 className="font-display font-semibold text-pasture-900">Living place</h3>
-        <p className="mt-1 text-sm text-soil-500">
-          Assign this animal to a location and camp.
-        </p>
-        <form onSubmit={handleSavePlace} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <CollapsibleCard
+        title="Living place"
+        description="Assign this animal to a location and camp."
+        className="print:hidden"
+      >
+        <form onSubmit={handleSavePlace} className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Select
             label="Location"
             id="detail-location"
@@ -722,52 +723,52 @@ export function AnimalDetailPage() {
         )}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
-      </Card>
+      </CollapsibleCard>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Breeding" className="print:hidden">
         <AnimalBreedingPanel
           animal={animal}
           companyId={profile.company_id}
           userId={profile.id}
           herdAnimals={herdAnimals}
         />
-      </div>
+      </CollapsibleSection>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Weight" className="print:hidden">
         <AnimalWeightsPanel
           animalId={animal.id}
           companyId={profile.company_id}
           userId={profile.id}
         />
-      </div>
+      </CollapsibleSection>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Health Records" className="print:hidden">
         <AnimalInoculationsPanel
           animalId={animal.id}
           companyId={profile.company_id}
           userId={profile.id}
         />
-      </div>
+      </CollapsibleSection>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Show Results" className="print:hidden">
         <AnimalAchievementsPanel
           animalId={animal.id}
           companyId={profile.company_id}
           userId={profile.id}
         />
-      </div>
+      </CollapsibleSection>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Documents" className="print:hidden">
         <AnimalDocumentsPanel
           animalId={animal.id}
           companyId={profile.company_id}
           userId={profile.id}
         />
-      </div>
+      </CollapsibleSection>
 
-      <div className="print:hidden">
+      <CollapsibleSection title="Photos" className="print:hidden">
         <AnimalPhotosPanel animalId={animal.id} companyId={profile.company_id} userId={profile.id} />
-      </div>
+      </CollapsibleSection>
     </div>
   )
 }
