@@ -30,11 +30,13 @@ import { AnimalInoculationsPanel } from '../../components/animals/AnimalInoculat
 import { AnimalWeightsPanel } from '../../components/animals/AnimalWeightsPanel'
 import { AnimalBreedingPanel } from '../../components/animals/AnimalBreedingPanel'
 import { AnimalPrintCard } from '../../components/animals/AnimalPrintCard'
+import { ParentPicker } from '../../components/animals/ParentPicker'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/layout/AppShell'
+import { formatTagNumber } from '../../lib/animals'
 
 interface AnimalDetailsForm {
   studbook_number: string
@@ -83,8 +85,13 @@ export function AnimalDetailPage() {
   const [savingPlace, setSavingPlace] = useState(false)
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [savingDetails, setSavingDetails] = useState(false)
+  const [savingPedigree, setSavingPedigree] = useState(false)
   const [identity, setIdentity] = useState({ stud: '', year: '', number: '' })
   const [details, setDetails] = useState<AnimalDetailsForm | null>(null)
+  const [damId, setDamId] = useState('')
+  const [damTag, setDamTag] = useState('')
+  const [sireId, setSireId] = useState('')
+  const [sireName, setSireName] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -127,6 +134,10 @@ export function AnimalDetailPage() {
         number: animalRes.data.id_number ?? '',
       })
       setDetails(detailsFromAnimal(animalRes.data))
+      setDamId(animalRes.data.dam_id ?? '')
+      setDamTag(animalRes.data.dam_tag_number ?? '')
+      setSireId(animalRes.data.sire_id ?? '')
+      setSireName(animalRes.data.sire_name ?? '')
       const camp = animalRes.data.encampments
       setEncampmentId(animalRes.data.encampment_id ?? '')
       setLocationId(camp?.location_id ?? '')
@@ -151,6 +162,16 @@ export function AnimalDetailPage() {
   const campsForLocation = useMemo(
     () => encampments.filter((e) => e.location_id === locationId),
     [encampments, locationId],
+  )
+
+  const mothers = useMemo(
+    () => herdAnimals.filter((a) => a.id !== animal?.id && a.sex !== 'male'),
+    [herdAnimals, animal],
+  )
+
+  const fathers = useMemo(
+    () => herdAnimals.filter((a) => a.id !== animal?.id && a.sex !== 'female'),
+    [herdAnimals, animal],
   )
 
   const placeDisplay = animal
@@ -306,6 +327,35 @@ export function AnimalDetailPage() {
     setSuccess('Animal details updated.')
     await loadAnimal(false)
     setSavingDetails(false)
+  }
+
+  const handleSavePedigree = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!animal) return
+
+    setSavingPedigree(true)
+    setError('')
+    setSuccess('')
+
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update({
+        dam_id: damId || null,
+        dam_tag_number: damTag || null,
+        sire_id: sireId || null,
+        sire_name: sireName || null,
+      })
+      .eq('id', animal.id)
+
+    if (updateError) {
+      setError(updateError.message)
+      setSavingPedigree(false)
+      return
+    }
+
+    setSuccess('Pedigree updated.')
+    await loadAnimal(false)
+    setSavingPedigree(false)
   }
 
   if (loading) {
@@ -573,6 +623,52 @@ export function AnimalDetailPage() {
           </form>
         </Card>
       )}
+
+      <Card className="print:hidden">
+        <h3 className="font-display font-semibold text-pasture-900">Pedigree</h3>
+        <p className="mt-1 text-sm text-soil-500">
+          Link mother and father. You can enter animal IDs even if they don't exist yet.
+        </p>
+        <form onSubmit={handleSavePedigree} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ParentPicker
+            id="edit-mother"
+            label="Mother"
+            animals={mothers}
+            selectedId={damId}
+            onSelect={(id) => {
+              const dam = mothers.find((animal) => animal.id === id)
+              setDamId(id)
+              setDamTag(dam ? formatTagNumber(dam) ?? '' : '')
+            }}
+            manualEntry={damId ? '' : damTag}
+            onManualEntry={(tag) => {
+              setDamId('')
+              setDamTag(tag)
+            }}
+          />
+          <ParentPicker
+            id="edit-father"
+            label="Father"
+            animals={fathers}
+            selectedId={sireId}
+            onSelect={(id) => {
+              const sire = fathers.find((animal) => animal.id === id)
+              setSireId(id)
+              setSireName(sire ? animalLabel(sire) : '')
+            }}
+            manualEntry={sireId ? '' : sireName}
+            onManualEntry={(name) => {
+              setSireId('')
+              setSireName(name)
+            }}
+          />
+          <div className="md:col-span-2">
+            <Button type="submit" disabled={savingPedigree} className="w-full sm:w-auto">
+              {savingPedigree ? 'Saving...' : 'Save pedigree'}
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       <Card className="print:hidden">
         <h3 className="font-display font-semibold text-pasture-900">Living place</h3>
