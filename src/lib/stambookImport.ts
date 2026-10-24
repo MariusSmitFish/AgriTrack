@@ -252,9 +252,12 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   const animalNumberIdx = findColumn('ANIMAL_NUMBER')
   const sexIdx = findColumn('SEX')
   const birthDateIdx = findColumn('BIRTH_DTM')
-  // For parents, DAM_NID and SIRE_NID columns DO contain BBG-prefixed numbers
+  
+  // For parents, try both *_NID and *_ANIMAL_NUMBER columns
   const damNidIdx = findColumn('DAM_NID')
+  const damAnimalNumberIdx = findColumn('DAM_ANIMAL_NUMBER')
   const sireNidIdx = findColumn('SIRE_NID')
+  const sireAnimalNumberIdx = findColumn('SIRE_ANIMAL_NUMBER')
   
   // Debug: log column indices and first few header values
   console.log('Column indices found:', {
@@ -263,49 +266,82 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
     sexIdx,
     birthDateIdx,
     damNidIdx,
+    damAnimalNumberIdx,
     sireNidIdx,
+    sireAnimalNumberIdx,
     headerSample: header.slice(0, 15).map((h, i) => `${i}:${h}`)
   })
   
   // Need at least one animal ID column and sex
   if ((nidIdx === -1 && animalNumberIdx === -1) || sexIdx === -1) return rows
   
-  // Determine which column to use for animal ID by checking first data row
-  let useNidColumn = false
+  // Determine which columns to use by checking first data row
+  let animalIdIdx = -1
+  let damIdIdx = -1
+  let sireIdIdx = -1
+  
   if (records.length > headerIndex + 1) {
     const firstDataRow = records[headerIndex + 1]
+    
+    // Auto-detect animal ID column
     const nidValue = nidIdx >= 0 ? firstDataRow[nidIdx] : ''
     const animalNumberValue = animalNumberIdx >= 0 ? firstDataRow[animalNumberIdx] : ''
-    
-    // Check which one has the BBG prefix
     const nidHasPrefix = /^BBG[MF]?/i.test(nidValue)
     const animalNumberHasPrefix = /^BBG[MF]?/i.test(animalNumberValue)
     
-    console.log('First row values:', {
-      nidValue: nidValue?.substring(0, 20),
-      animalNumberValue: animalNumberValue?.substring(0, 20),
-      nidHasPrefix,
-      animalNumberHasPrefix
-    })
-    
-    // Prefer the one with BBG prefix
     if (nidHasPrefix && !animalNumberHasPrefix) {
-      useNidColumn = true
+      animalIdIdx = nidIdx
     } else if (!nidHasPrefix && animalNumberHasPrefix) {
-      useNidColumn = false
+      animalIdIdx = animalNumberIdx
     } else if (nidIdx >= 0) {
-      // If both or neither have prefix, prefer NID
-      useNidColumn = true
+      animalIdIdx = nidIdx
+    } else {
+      animalIdIdx = animalNumberIdx
     }
+    
+    // Auto-detect dam (mother) column
+    const damNidValue = damNidIdx >= 0 ? firstDataRow[damNidIdx] : ''
+    const damAnimalNumberValue = damAnimalNumberIdx >= 0 ? firstDataRow[damAnimalNumberIdx] : ''
+    const damNidHasPrefix = /^BBG[MF]?/i.test(damNidValue)
+    const damAnimalNumberHasPrefix = /^BBG[MF]?/i.test(damAnimalNumberValue)
+    
+    if (damNidHasPrefix && !damAnimalNumberHasPrefix) {
+      damIdIdx = damNidIdx
+    } else if (!damNidHasPrefix && damAnimalNumberHasPrefix) {
+      damIdIdx = damAnimalNumberIdx
+    } else if (damNidIdx >= 0) {
+      damIdIdx = damNidIdx
+    } else {
+      damIdIdx = damAnimalNumberIdx
+    }
+    
+    // Auto-detect sire (father) column
+    const sireNidValue = sireNidIdx >= 0 ? firstDataRow[sireNidIdx] : ''
+    const sireAnimalNumberValue = sireAnimalNumberIdx >= 0 ? firstDataRow[sireAnimalNumberIdx] : ''
+    const sireNidHasPrefix = /^BBG[MF]?/i.test(sireNidValue)
+    const sireAnimalNumberHasPrefix = /^BBG[MF]?/i.test(sireAnimalNumberValue)
+    
+    if (sireNidHasPrefix && !sireAnimalNumberHasPrefix) {
+      sireIdIdx = sireNidIdx
+    } else if (!sireNidHasPrefix && sireAnimalNumberHasPrefix) {
+      sireIdIdx = sireAnimalNumberIdx
+    } else if (sireNidIdx >= 0) {
+      sireIdIdx = sireNidIdx
+    } else {
+      sireIdIdx = sireAnimalNumberIdx
+    }
+    
+    console.log('Column detection results:', {
+      animalId: { idx: animalIdIdx, value: firstDataRow[animalIdIdx]?.substring(0, 20) },
+      dam: { idx: damIdIdx, value: firstDataRow[damIdIdx]?.substring(0, 20) },
+      sire: { idx: sireIdIdx, value: firstDataRow[sireIdIdx]?.substring(0, 20) }
+    })
   }
-  
-  const animalIdIdx = useNidColumn ? nidIdx : animalNumberIdx
-  console.log('Using column:', useNidColumn ? 'NID' : 'ANIMAL_NUMBER', 'at index', animalIdIdx)
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(animalIdIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
+    if (record.length <= Math.max(animalIdIdx, sexIdx, birthDateIdx || 0, damIdIdx || 0, sireIdIdx || 0)) continue
     
     const animalNumber = record[animalIdIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
@@ -322,15 +358,19 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
         12: record[12],
         13: record[13],
       })
-      console.log('Extracted animal number from index', animalIdIdx, ':', animalNumber)
+      console.log('Extracted values:', {
+        animal: animalNumber,
+        dam: damIdIdx >= 0 ? record[damIdIdx] : 'N/A',
+        sire: sireIdIdx >= 0 ? record[sireIdIdx] : 'N/A'
+      })
     }
     
     rows.push({
       animalNumber,
       sex: record[sexIdx]?.trim() || '',
       birthDate: birthDateIdx >= 0 ? record[birthDateIdx]?.trim() || '' : '',
-      damAnimalNumber: damNidIdx >= 0 && record[damNidIdx]?.trim() ? record[damNidIdx].trim() : null,
-      sireAnimalNumber: sireNidIdx >= 0 && record[sireNidIdx]?.trim() ? record[sireNidIdx].trim() : null,
+      damAnimalNumber: damIdIdx >= 0 && record[damIdIdx]?.trim() ? record[damIdIdx].trim() : null,
+      sireAnimalNumber: sireIdIdx >= 0 && record[sireIdIdx]?.trim() ? record[sireIdIdx].trim() : null,
     })
   }
   
