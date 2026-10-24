@@ -332,6 +332,11 @@ export function CaptureAnimalPage() {
               set('dam_id', id)
               set('dam_tag_number', dam ? formatTagNumber(dam) ?? '' : '')
             }}
+            manualEntry={form.dam_id ? '' : form.dam_tag_number}
+            onManualEntry={(tag) => {
+              set('dam_id', '')
+              set('dam_tag_number', tag)
+            }}
           />
           <ParentPicker
             id="capture-father"
@@ -342,6 +347,11 @@ export function CaptureAnimalPage() {
               const sire = fathers.find((animal) => animal.id === id)
               set('sire_id', id)
               set('sire_name', sire ? animalLabel(sire) : '')
+            }}
+            manualEntry={form.sire_id ? '' : form.sire_name}
+            onManualEntry={(name) => {
+              set('sire_id', '')
+              set('sire_name', name)
             }}
           />
         </FormSection>
