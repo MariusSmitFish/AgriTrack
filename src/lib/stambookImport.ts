@@ -80,7 +80,6 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   const lines = normalized.split('\n')
   const records: string[][] = []
   let currentRecordLines: string[] = []
-  let inQuote = false
   
   for (const line of lines) {
     currentRecordLines.push(line)
