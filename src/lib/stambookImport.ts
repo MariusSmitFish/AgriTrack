@@ -234,29 +234,31 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
-  // Helper to find column index (case-insensitive, ignoring quotes/spaces)
-  const findColumn = (names: string[]): number => {
+  // Helper to find column index (exact match, ignoring quotes/spaces/case)
+  const findColumn = (name: string): number => {
     return header.findIndex(col => {
       const normalized = col.replace(/['"]/g, '').trim().toUpperCase()
-      return names.some(name => normalized === name.toUpperCase() || normalized.includes(name.toUpperCase()))
+      return normalized === name.toUpperCase()
     })
   }
   
-  // Use NID columns which contain BBG-prefixed numbers (e.g., BBGF1610170092)
-  const nidIdx = findColumn(['NID', 'ANIMAL_NUMBER'])
-  const sexIdx = findColumn(['SEX'])
-  const birthDateIdx = findColumn(['BIRTH_DTM', 'BIRTH_DATE', 'DOB'])
-  const damNidIdx = findColumn(['DAM_NID', 'DAM_ANIMAL_NUMBER', 'MOTHER'])
-  const sireNidIdx = findColumn(['SIRE_NID', 'SIRE_ANIMAL_NUMBER', 'FATHER'])
+  // Use ANIMAL_NUMBER for main animal ID (has BBG prefix like BBGF1610170092)
+  // Note: NID column contains internal IDs without BBG prefix, so we don't use it
+  const animalNumberIdx = findColumn('ANIMAL_NUMBER')
+  const sexIdx = findColumn('SEX')
+  const birthDateIdx = findColumn('BIRTH_DTM')
+  // For parents, DAM_NID and SIRE_NID columns DO contain BBG-prefixed numbers
+  const damNidIdx = findColumn('DAM_NID')
+  const sireNidIdx = findColumn('SIRE_NID')
   
-  if (nidIdx === -1 || sexIdx === -1) return rows
+  if (animalNumberIdx === -1 || sexIdx === -1) return rows
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(nidIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
+    if (record.length <= Math.max(animalNumberIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
     
-    const animalNumber = record[nidIdx]?.trim()
+    const animalNumber = record[animalNumberIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
     
     rows.push({
