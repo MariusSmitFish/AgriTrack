@@ -19,6 +19,8 @@ interface ParentPickerProps {
   onSelect: (id: string) => void
   placeholder?: string
   enableTagScan?: boolean
+  manualEntry?: string
+  onManualEntry?: (tag: string) => void
 }
 
 export function ParentPicker({
@@ -29,6 +31,8 @@ export function ParentPicker({
   onSelect,
   placeholder = 'Search animal ID or tag…',
   enableTagScan = false,
+  manualEntry,
+  onManualEntry,
 }: ParentPickerProps) {
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
@@ -55,6 +59,7 @@ export function ParentPicker({
 
   const duplicateTag = Boolean(exactTag && matches.length > 1)
   const visible = exactTag ? matches : matches.slice(0, 8)
+  const showManualEntry = onManualEntry && deferredQuery.trim() && matches.length === 0
 
   return (
     <div className="space-y-2">
@@ -85,7 +90,45 @@ export function ParentPicker({
         </div>
       )}
 
-      {deferredQuery.trim() && matches.length === 0 && (
+      {manualEntry && !selected && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-barn-600/30 bg-barn-50 px-3 py-2.5">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-soil-500">Manual entry</p>
+            <p className="truncate text-sm font-medium text-soil-800">{manualEntry}</p>
+            <p className="text-xs text-soil-500">Will link automatically when added</p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 text-sm font-semibold text-soil-600 hover:text-soil-800"
+            onClick={() => onManualEntry?.('')}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {showManualEntry && (
+        <div className="space-y-2">
+          <p className="text-sm text-soil-500">No animals match that search.</p>
+          <button
+            type="button"
+            className="w-full rounded-xl border border-barn-600/30 bg-barn-50 px-3 py-2.5 text-left hover:bg-barn-100"
+            onClick={() => {
+              onManualEntry?.(deferredQuery.trim())
+              setQuery('')
+            }}
+          >
+            <p className="text-sm font-medium text-soil-800">
+              Add "{deferredQuery.trim()}" as manual entry
+            </p>
+            <p className="mt-0.5 text-xs text-soil-500">
+              The animal will link automatically when you add it later
+            </p>
+          </button>
+        </div>
+      )}
+
+      {deferredQuery.trim() && matches.length === 0 && !showManualEntry && (
         <p className="text-sm text-soil-500">No animals match that search.</p>
       )}
 
