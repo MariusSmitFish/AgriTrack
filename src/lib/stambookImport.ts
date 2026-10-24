@@ -180,11 +180,11 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
           fields.push(currentField.trim())
         }
         
-        // Clean fields: remove surrounding quotes
+        // Clean fields: remove surrounding quotes (handle multiple layers)
         const cleanFields = fields.map(f => {
           let cleaned = f.trim()
-          // Remove surrounding quotes if present
-          if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+          // Remove surrounding quotes if present (may need to do this multiple times)
+          while (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length > 1) {
             cleaned = cleaned.slice(1, -1)
           }
           return cleaned
@@ -234,21 +234,20 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
+  // Helper to find column index (case-insensitive, ignoring quotes/spaces)
+  const findColumn = (names: string[]): number => {
+    return header.findIndex(col => {
+      const normalized = col.replace(/['"]/g, '').trim().toUpperCase()
+      return names.some(name => normalized === name.toUpperCase() || normalized.includes(name.toUpperCase()))
+    })
+  }
+  
   // Use NID columns which contain BBG-prefixed numbers (e.g., BBGF1610170092)
-  const nidIdx = header.findIndex(col => col === 'NID')
-  const sexIdx = header.findIndex(col => col === 'SEX')
-  const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
-  
-  // Try multiple possible column names for dam and sire
-  let damNidIdx = header.findIndex(col => col === 'DAM_NID')
-  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col.includes('DAM') && col.includes('NID'))
-  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
-  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col.toUpperCase().includes('MOTHER'))
-  
-  let sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
-  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col.includes('SIRE') && col.includes('NID'))
-  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
-  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col.toUpperCase().includes('FATHER'))
+  const nidIdx = findColumn(['NID', 'ANIMAL_NUMBER'])
+  const sexIdx = findColumn(['SEX'])
+  const birthDateIdx = findColumn(['BIRTH_DTM', 'BIRTH_DATE', 'DOB'])
+  const damNidIdx = findColumn(['DAM_NID', 'DAM_ANIMAL_NUMBER', 'MOTHER'])
+  const sireNidIdx = findColumn(['SIRE_NID', 'SIRE_ANIMAL_NUMBER', 'FATHER'])
   
   if (nidIdx === -1 || sexIdx === -1) return rows
   
