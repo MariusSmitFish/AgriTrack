@@ -194,13 +194,11 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
         />
         <Input
           label="Weight (kg)"
-          type="number"
+          type="text"
           inputMode="decimal"
-          min="0.01"
-          step="0.1"
           value={form.weight_kg}
           onChange={(e) => set('weight_kg', e.target.value)}
-          placeholder="e.g. 420"
+          placeholder="e.g. 42.5"
           required
         />
         <div className="md:col-span-2">
