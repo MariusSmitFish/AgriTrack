@@ -415,29 +415,32 @@ export async function importStambookAnimals(
     const animalId = allAnimals.get(animalKey)
     if (!animalId) continue
     
-    let damId: string | null = null
-    let sireId: string | null = null
+    const updates: Partial<Animal> = {}
     
+    // Link dam if info available
     if (original.damStudNumber && original.damYear && original.damAnimalNumber) {
       const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
-      damId = allAnimals.get(damKey) || null
-    }
-    
-    if (original.sireStudNumber && original.sireYear && original.sireAnimalNumber) {
-      const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
-      sireId = allAnimals.get(sireKey) || null
-    }
-    
-    if (!damId && !sireId) continue
-    
-    const updates: Partial<Animal> = {}
-    if (damId) {
-      updates.dam_id = damId
+      const damId = allAnimals.get(damKey) || null
+      if (damId) {
+        updates.dam_id = damId
+      }
+      // Always set fallback tag even if animal not found yet
       updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
     }
-    if (sireId) {
-      updates.sire_id = sireId
+    
+    // Link sire if info available
+    if (original.sireStudNumber && original.sireYear && original.sireAnimalNumber) {
+      const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
+      const sireId = allAnimals.get(sireKey) || null
+      if (sireId) {
+        updates.sire_id = sireId
+      }
+      // Always set fallback name even if animal not found yet
+      updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
     }
+    
+    // Skip if nothing to update
+    if (Object.keys(updates).length === 0) continue
     
     const { error: updateError } = await supabase
       .from('animals')

@@ -369,6 +369,7 @@ export const animalStatusOptions = [
   { value: 'sold', label: 'Sold' },
   { value: 'deceased', label: 'Deceased' },
   { value: 'transferred', label: 'Transferred' },
+  { value: 'stamboek', label: 'Stamboek' },
 ] as const
 
 export const animalSpeciesOptions = [
