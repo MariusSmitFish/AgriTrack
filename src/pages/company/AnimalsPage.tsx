@@ -210,7 +210,9 @@ export function AnimalsPage() {
   }
 
   const handleDeleteAllStamboek = async () => {
-    const count = stamboekCount
+    const stamboekAnimals = animals.filter((a) => a.status === 'stamboek')
+    const count = stamboekAnimals.length
+    
     if (count === 0) {
       setError('No stamboek animals to delete.')
       return
@@ -229,13 +231,12 @@ export function AnimalsPage() {
     setDeletingStamboek(true)
 
     try {
-      const { error: deleteError } = await supabase
-        .from('animals')
-        .delete()
-        .eq('company_id', profile!.company_id!)
-        .eq('status', 'stamboek')
-
-      if (deleteError) throw deleteError
+      // Delete each animal individually to properly clean up storage and handle cascades
+      const deletePromises = stamboekAnimals.map((animal) =>
+        deleteAnimal({ id: animal.id, company_id: animal.company_id })
+      )
+      
+      await Promise.all(deletePromises)
 
       setAnimals((prev) => prev.filter((a) => a.status !== 'stamboek'))
       setSuccess(`Deleted ${count} stamboek ${count === 1 ? 'animal' : 'animals'}.`)
