@@ -184,20 +184,31 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
+  // NID columns contain the BBG-prefixed animal numbers we want
+  const nidIdx = header.findIndex(col => col === 'NID')
   const animalNumberIdx = header.findIndex(col => col === 'ANIMAL_NUMBER')
   const sexIdx = header.findIndex(col => col === 'SEX')
   const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
-  const damIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
-  const sireIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
   
-  if (animalNumberIdx === -1 || sexIdx === -1) return rows
+  // For parents, prefer *_NID columns (BBG-prefixed) over *_ANIMAL_NUMBER
+  const damNidIdx = header.findIndex(col => col === 'DAM_NID')
+  const damNumberIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
+  const sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
+  const sireNumberIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
+  
+  // Prefer NID (has BBG prefix), fall back to ANIMAL_NUMBER
+  const primaryIdx = nidIdx >= 0 ? nidIdx : animalNumberIdx
+  const damIdx = damNidIdx >= 0 ? damNidIdx : damNumberIdx
+  const sireIdx = sireNidIdx >= 0 ? sireNidIdx : sireNumberIdx
+  
+  if (primaryIdx === -1 || sexIdx === -1) return rows
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(animalNumberIdx, sexIdx, birthDateIdx || 0, damIdx || 0, sireIdx || 0)) continue
+    if (record.length <= Math.max(primaryIdx, sexIdx, birthDateIdx || 0, damIdx || 0, sireIdx || 0)) continue
     
-    const animalNumber = record[animalNumberIdx]?.trim()
+    const animalNumber = record[primaryIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
     
     rows.push({
