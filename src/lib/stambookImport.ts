@@ -180,11 +180,11 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
           fields.push(currentField.trim())
         }
         
-        // Clean fields: remove surrounding quotes
+        // Clean fields: remove surrounding quotes (handle multiple layers)
         const cleanFields = fields.map(f => {
           let cleaned = f.trim()
-          // Remove surrounding quotes if present
-          if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+          // Remove surrounding quotes if present (may need to do this multiple times)
+          while (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length > 1) {
             cleaned = cleaned.slice(1, -1)
           }
           return cleaned
@@ -193,6 +193,7 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
         // Set expected field count from first record (header)
         if (records.length === 0 && cleanFields.length > 10) {
           expectedFieldCount = cleanFields.length
+          console.log('Expected field count set to:', expectedFieldCount)
         }
         
         // Only accept record if it has the exact field count as header
@@ -206,9 +207,13 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
           currentRecordLines = []
         } else {
           // Not the right field count yet
+          if (records.length <= 2) {
+            console.log(`Record ${records.length}: Got ${cleanFields.length} fields, expected ${expectedFieldCount}. Lines accumulated: ${currentRecordLines.length}`)
+          }
           // Keep accumulating lines unless we've accumulated too many
           if (currentRecordLines.length > 10) {
             // Safety limit: give up and reset after 10 lines
+            console.warn(`Gave up on record after 10 lines. Field count: ${cleanFields.length}, expected: ${expectedFieldCount}`)
             currentRecordLines = []
           }
           // else: keep accumulating, multi-line records need more lines
@@ -234,31 +239,138 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
-  // Use NID columns which contain BBG-prefixed numbers (e.g., BBGF1610170092)
-  const nidIdx = header.findIndex(col => col === 'NID')
-  const sexIdx = header.findIndex(col => col === 'SEX')
-  const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
+  // Helper to find column index (exact match, ignoring quotes/spaces/case)
+  const findColumn = (name: string): number => {
+    return header.findIndex(col => {
+      const normalized = col.replace(/['"]/g, '').trim().toUpperCase()
+      return normalized === name.toUpperCase()
+    })
+  }
   
-  // For parents, use *_NID columns which have the BBG prefixes
-  const damNidIdx = header.findIndex(col => col === 'DAM_NID')
-  const sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
+  // Try both NID and ANIMAL_NUMBER columns to see which has the BBG prefix
+  const nidIdx = findColumn('NID')
+  const animalNumberIdx = findColumn('ANIMAL_NUMBER')
+  const sexIdx = findColumn('SEX')
+  const birthDateIdx = findColumn('BIRTH_DTM')
   
-  if (nidIdx === -1 || sexIdx === -1) return rows
+  // For parents, try both *_NID and *_ANIMAL_NUMBER columns
+  const damNidIdx = findColumn('DAM_NID')
+  const damAnimalNumberIdx = findColumn('DAM_ANIMAL_NUMBER')
+  const sireNidIdx = findColumn('SIRE_NID')
+  const sireAnimalNumberIdx = findColumn('SIRE_ANIMAL_NUMBER')
+  
+  // Debug: log column indices and first few header values
+  console.log('Column indices found:', {
+    nidIdx,
+    animalNumberIdx,
+    sexIdx,
+    birthDateIdx,
+    damNidIdx,
+    damAnimalNumberIdx,
+    sireNidIdx,
+    sireAnimalNumberIdx,
+    headerSample: header.slice(0, 15).map((h, i) => `${i}:${h}`)
+  })
+  
+  // Need at least one animal ID column and sex
+  if ((nidIdx === -1 && animalNumberIdx === -1) || sexIdx === -1) return rows
+  
+  // Determine which columns to use by checking first data row
+  let animalIdIdx = -1
+  let damIdIdx = -1
+  let sireIdIdx = -1
+  
+  if (records.length > headerIndex + 1) {
+    const firstDataRow = records[headerIndex + 1]
+    
+    // Auto-detect animal ID column
+    const nidValue = nidIdx >= 0 ? firstDataRow[nidIdx] : ''
+    const animalNumberValue = animalNumberIdx >= 0 ? firstDataRow[animalNumberIdx] : ''
+    const nidHasPrefix = /^BBG[MF]?/i.test(nidValue)
+    const animalNumberHasPrefix = /^BBG[MF]?/i.test(animalNumberValue)
+    
+    if (nidHasPrefix && !animalNumberHasPrefix) {
+      animalIdIdx = nidIdx
+    } else if (!nidHasPrefix && animalNumberHasPrefix) {
+      animalIdIdx = animalNumberIdx
+    } else if (nidIdx >= 0) {
+      animalIdIdx = nidIdx
+    } else {
+      animalIdIdx = animalNumberIdx
+    }
+    
+    // Auto-detect dam (mother) column
+    const damNidValue = damNidIdx >= 0 ? firstDataRow[damNidIdx] : ''
+    const damAnimalNumberValue = damAnimalNumberIdx >= 0 ? firstDataRow[damAnimalNumberIdx] : ''
+    const damNidHasPrefix = /^BBG[MF]?/i.test(damNidValue)
+    const damAnimalNumberHasPrefix = /^BBG[MF]?/i.test(damAnimalNumberValue)
+    
+    if (damNidHasPrefix && !damAnimalNumberHasPrefix) {
+      damIdIdx = damNidIdx
+    } else if (!damNidHasPrefix && damAnimalNumberHasPrefix) {
+      damIdIdx = damAnimalNumberIdx
+    } else if (damNidIdx >= 0) {
+      damIdIdx = damNidIdx
+    } else {
+      damIdIdx = damAnimalNumberIdx
+    }
+    
+    // Auto-detect sire (father) column
+    const sireNidValue = sireNidIdx >= 0 ? firstDataRow[sireNidIdx] : ''
+    const sireAnimalNumberValue = sireAnimalNumberIdx >= 0 ? firstDataRow[sireAnimalNumberIdx] : ''
+    const sireNidHasPrefix = /^BBG[MF]?/i.test(sireNidValue)
+    const sireAnimalNumberHasPrefix = /^BBG[MF]?/i.test(sireAnimalNumberValue)
+    
+    if (sireNidHasPrefix && !sireAnimalNumberHasPrefix) {
+      sireIdIdx = sireNidIdx
+    } else if (!sireNidHasPrefix && sireAnimalNumberHasPrefix) {
+      sireIdIdx = sireAnimalNumberIdx
+    } else if (sireNidIdx >= 0) {
+      sireIdIdx = sireNidIdx
+    } else {
+      sireIdIdx = sireAnimalNumberIdx
+    }
+    
+    console.log('Column detection results:', {
+      animalId: { idx: animalIdIdx, value: firstDataRow[animalIdIdx]?.substring(0, 20) },
+      dam: { idx: damIdIdx, value: firstDataRow[damIdIdx]?.substring(0, 20) },
+      sire: { idx: sireIdIdx, value: firstDataRow[sireIdIdx]?.substring(0, 20) }
+    })
+  }
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(nidIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
+    if (record.length <= Math.max(animalIdIdx, sexIdx, birthDateIdx || 0, damIdIdx || 0, sireIdIdx || 0)) continue
     
-    const animalNumber = record[nidIdx]?.trim()
+    const animalNumber = record[animalIdIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
+    
+    // Debug: log first record's fields
+    if (rows.length === 0) {
+      console.log('First record sample (indices 6-13):', {
+        6: record[6],
+        7: record[7],
+        8: record[8],
+        9: record[9],
+        10: record[10],
+        11: record[11],
+        12: record[12],
+        13: record[13],
+      })
+      console.log('Extracted values:', {
+        animal: animalNumber,
+        dam: damIdIdx >= 0 ? record[damIdIdx] : 'N/A',
+        sire: sireIdIdx >= 0 ? record[sireIdIdx] : 'N/A'
+      })
+    }
     
     rows.push({
       animalNumber,
       sex: record[sexIdx]?.trim() || '',
       birthDate: birthDateIdx >= 0 ? record[birthDateIdx]?.trim() || '' : '',
-      damAnimalNumber: damNidIdx >= 0 && record[damNidIdx]?.trim() ? record[damNidIdx].trim() : null,
-      sireAnimalNumber: sireNidIdx >= 0 && record[sireNidIdx]?.trim() ? record[sireNidIdx].trim() : null,
+      damAnimalNumber: damIdIdx >= 0 && record[damIdIdx]?.trim() ? record[damIdIdx].trim() : null,
+      sireAnimalNumber: sireIdIdx >= 0 && record[sireIdIdx]?.trim() ? record[sireIdIdx].trim() : null,
     })
   }
   
@@ -271,6 +383,18 @@ function prepareAnimal(row: StambookImportRow): ParsedAnimal | null {
   
   const damParsed = row.damAnimalNumber ? parseAnimalNumber(row.damAnimalNumber) : null
   const sireParsed = row.sireAnimalNumber ? parseAnimalNumber(row.sireAnimalNumber) : null
+  
+  // Debug specific animal
+  if (parsed.fullTag === '1637-26-0009') {
+    console.log('DEBUG: Parsing animal 1637-26-0009:', {
+      rawAnimalNumber: row.animalNumber,
+      parsed,
+      rawDam: row.damAnimalNumber,
+      damParsed,
+      rawSire: row.sireAnimalNumber,
+      sireParsed
+    })
+  }
   
   return {
     studNumber: parsed.studNumber,
@@ -410,34 +534,79 @@ export async function importStambookAnimals(
   }
   
   // Link parents
+  let parentsLinked = 0
+  let damIdsLinked = 0
+  let sireIdsLinked = 0
+  let damTagsSet = 0
+  let sireNamesSet = 0
+  let animalsWithParentInfo = 0
+  
   for (const original of toCreate) {
     const animalKey = `${original.studNumber}-${original.year}-${original.animalNumber}`.toUpperCase()
     const animalId = allAnimals.get(animalKey)
-    if (!animalId) continue
-    
-    let damId: string | null = null
-    let sireId: string | null = null
-    
-    if (original.damStudNumber && original.damYear && original.damAnimalNumber) {
-      const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
-      damId = allAnimals.get(damKey) || null
+    if (!animalId) {
+      result.warnings.push(`Row ${original.originalRow}: Could not find created animal ${original.fullTag} for parent linking`)
+      continue
     }
-    
-    if (original.sireStudNumber && original.sireYear && original.sireAnimalNumber) {
-      const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
-      sireId = allAnimals.get(sireKey) || null
-    }
-    
-    if (!damId && !sireId) continue
     
     const updates: Partial<Animal> = {}
-    if (damId) {
-      updates.dam_id = damId
+    const hasDamInfo = original.damStudNumber && original.damYear && original.damAnimalNumber
+    const hasSireInfo = original.sireStudNumber && original.sireYear && original.sireAnimalNumber
+    
+    if (hasDamInfo || hasSireInfo) {
+      animalsWithParentInfo++
+    }
+    
+    // Link dam if info available
+    if (hasDamInfo) {
+      const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
+      const damId = allAnimals.get(damKey) || null
+      if (damId) {
+        updates.dam_id = damId
+        damIdsLinked++
+      }
+      // Always set fallback tag even if animal not found yet
       updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
+      damTagsSet++
     }
-    if (sireId) {
-      updates.sire_id = sireId
+    
+    // Link sire if info available
+    if (hasSireInfo) {
+      const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
+      const sireId = allAnimals.get(sireKey) || null
+      if (sireId) {
+        updates.sire_id = sireId
+        sireIdsLinked++
+      }
+      // Always set fallback name even if animal not found yet
+      updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
+      sireNamesSet++
     }
+    
+    // Debug specific animal
+    if (original.fullTag === '1637-26-0009') {
+      console.log('DEBUG: Linking parents for 1637-26-0009:', {
+        animalId,
+        hasDamInfo,
+        hasSireInfo,
+        damData: hasDamInfo ? {
+          studNumber: original.damStudNumber,
+          year: original.damYear,
+          animalNumber: original.damAnimalNumber,
+          damKey: `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase(),
+        } : null,
+        sireData: hasSireInfo ? {
+          studNumber: original.sireStudNumber,
+          year: original.sireYear,
+          animalNumber: original.sireAnimalNumber,
+          sireKey: `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase(),
+        } : null,
+        updates
+      })
+    }
+    
+    // Skip if nothing to update
+    if (Object.keys(updates).length === 0) continue
     
     const { error: updateError } = await supabase
       .from('animals')
@@ -446,6 +615,24 @@ export async function importStambookAnimals(
     
     if (updateError) {
       result.warnings.push(`Row ${original.originalRow}: Created ${original.fullTag} but could not link parents: ${updateError.message}`)
+    } else {
+      parentsLinked++
+    }
+  }
+  
+  // Add summary of parent linking
+  if (animalsWithParentInfo === 0) {
+    result.warnings.push(`⚠ No parent information found in CSV - check that DAM_NID and SIRE_NID columns exist and contain values`)
+  } else {
+    result.warnings.push(`Found parent info for ${animalsWithParentInfo} animal(s)`)
+    if (parentsLinked > 0) {
+      result.warnings.push(`✓ Updated parent links for ${parentsLinked} animal(s)`)
+      if (damIdsLinked > 0 || sireIdsLinked > 0) {
+        result.warnings.push(`  - Linked ${damIdsLinked} mother(s) and ${sireIdsLinked} father(s) to animals in database`)
+      }
+      if (damTagsSet > 0 || sireNamesSet > 0) {
+        result.warnings.push(`  - Set ${damTagsSet} mother tag(s) and ${sireNamesSet} father name(s) as external references`)
+      }
     }
   }
   
