@@ -75,61 +75,96 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   // Normalize line endings
   let normalized = csvContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   
-  // This CSV format uses "," as field delimiter and "" for escaping quotes
-  // Split on newlines first, then handle multi-line records
+  // This CSV uses comma delimiters with quoted fields and "" for escaping quotes
+  // Handle multi-line records by tracking quote balance
   const lines = normalized.split('\n')
   const records: string[][] = []
   let currentRecordLines: string[] = []
+  let expectedFieldCount = 0
   
   for (const line of lines) {
     currentRecordLines.push(line)
     
-    // Count quotes in all accumulated lines
+    // Count quotes to detect complete records (even count = potentially complete)
     const allLines = currentRecordLines.join('\n')
     let quoteCount = 0
     for (const char of allLines) {
       if (char === '"') quoteCount++
     }
     
-    // If even number of quotes, record is complete
+    // Even number of quotes means record might be complete
+    // But we need to verify by parsing it
     if (quoteCount % 2 === 0) {
-      const recordLine = currentRecordLines.join('\n')
-      if (recordLine.trim()) {
-        // Split by "," pattern - field separator in this format
-        const fields: string[] = []
-        let i = 0
-        while (i < recordLine.length) {
-          // Skip leading quote
-          if (recordLine[i] === '"') i++
-          
-          let field = ''
-          while (i < recordLine.length) {
-            if (recordLine[i] === '"' && recordLine[i + 1] === '"') {
-              // Escaped quote
-              field += '"'
-              i += 2
-            } else if (recordLine[i] === '"' && recordLine[i + 1] === ',' && recordLine[i + 2] === '"') {
-              // End of field: ","
-              i += 3
-              break
-            } else if (recordLine[i] === '"' && i + 1 >= recordLine.length) {
-              // End of line/record
-              i++
-              break
-            } else {
-              field += recordLine[i]
-              i++
-            }
-          }
-          
-          fields.push(field.trim())
+      let recordLine = currentRecordLines.join('\n').trim()
+      if (recordLine) {
+        // Remove outer quotes if the entire record is wrapped
+        if (recordLine.startsWith('"') && recordLine.endsWith('"')) {
+          recordLine = recordLine.slice(1, -1)
         }
         
-        if (fields.length > 0) {
-          records.push(fields)
+        // Parse CSV: comma-separated fields with "" escaping quotes
+        const fields: string[] = []
+        let currentField = ''
+        let inQuotes = false
+        let i = 0
+        
+        while (i < recordLine.length) {
+          const char = recordLine[i]
+          const nextChar = recordLine[i + 1]
+          
+          if (char === '"' && nextChar === '"') {
+            // Escaped quote: "" becomes "
+            currentField += '"'
+            i += 2
+          } else if (char === '"') {
+            // Toggle quote mode
+            inQuotes = !inQuotes
+            i++
+          } else if (char === ',' && !inQuotes) {
+            // Field separator
+            fields.push(currentField.trim())
+            currentField = ''
+            i++
+          } else {
+            // Regular character
+            currentField += char
+            i++
+          }
+        }
+        
+        // Add last field
+        if (currentField || fields.length > 0) {
+          fields.push(currentField.trim())
+        }
+        
+        // Clean fields: remove surrounding quotes
+        const cleanFields = fields.map(f => {
+          let cleaned = f.trim()
+          // Remove surrounding quotes if present
+          if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+            cleaned = cleaned.slice(1, -1)
+          }
+          return cleaned
+        })
+        
+        // Set expected field count from first record (header)
+        if (records.length === 0 && cleanFields.length > 10) {
+          expectedFieldCount = cleanFields.length
+        }
+        
+        // Only accept record if it has enough fields
+        // First record sets the standard, subsequent records should match (or be close)
+        if (cleanFields.length > 1) {
+          if (records.length === 0 || cleanFields.length >= expectedFieldCount * 0.8) {
+            records.push(cleanFields)
+            currentRecordLines = []
+          }
+          // else: not enough fields yet, keep accumulating lines (don't reset)
+        } else {
+          currentRecordLines = []
         }
       }
-      currentRecordLines = []
+      // else: odd quote count, keep accumulating
     }
   }
   
