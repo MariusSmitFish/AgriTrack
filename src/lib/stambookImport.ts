@@ -41,26 +41,21 @@ interface ParsedAnimalNumber {
 function parseAnimalNumber(raw: string): ParsedAnimalNumber | null {
   if (!raw) return null
   
-  const cleaned = raw.trim()
+  // Remove BBG, BBGF, BBGM prefixes and whitespace
+  let cleaned = raw.trim()
+    .replace(/^BBG[MF]?\s*/i, '')  // Remove BBG, BBGF, or BBGM prefix
+    .replace(/\s+/g, '')  // Remove any spaces
   
-  // Format: studNumber(4) + year(2) + animalNumber(4) = 10 digits total
-  // Example: 0114780273 -> stud: 0114, year: 78, animal: 0273
-  if (cleaned.length >= 10) {
-    const studNumber = cleaned.slice(0, 4)
-    const year = cleaned.slice(4, 6)
-    const animalNumber = cleaned.slice(6, 10)
-    
-    return {
-      studNumber,
-      year,
-      animalNumber,
-      fullTag: `${year}-${animalNumber}`,
-    }
-  }
+  if (!cleaned || cleaned === '0') return null
   
-  // If less than 10 digits, try to parse from the end
-  // Last 4: animal number, Previous 2: year, Rest: stud number (pad to 4)
+  // Format after prefix removal: studNumber + year(2) + animalNumber(4)
+  // Examples:
+  //   1610170092 (10 digits) -> stud:1610, year:17, animal:0092
+  //   93260001 (8 digits) -> stud:93, year:26, animal:0001 -> pad stud to 0093
+  //   1637260016 (10 digits) -> stud:1637, year:26, animal:0016
+  
   if (cleaned.length >= 6) {
+    // Parse from the end: last 4 = animal, previous 2 = year, rest = stud
     const animalNumber = cleaned.slice(-4)
     const year = cleaned.slice(-6, -4)
     let studNumber = cleaned.slice(0, -6)
@@ -69,6 +64,7 @@ function parseAnimalNumber(raw: string): ParsedAnimalNumber | null {
     if (studNumber.length < 4) {
       studNumber = studNumber.padStart(4, '0')
     } else if (studNumber.length > 4) {
+      // Take first 4 digits if longer
       studNumber = studNumber.slice(0, 4)
     }
     
@@ -76,7 +72,7 @@ function parseAnimalNumber(raw: string): ParsedAnimalNumber | null {
       studNumber,
       year,
       animalNumber,
-      fullTag: `${year}-${animalNumber}`,
+      fullTag: `${studNumber}-${year}-${animalNumber}`,
     }
   }
   
@@ -231,31 +227,31 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
-  // Use ANIMAL_NUMBER column for the numeric IDs (format: studNumber+year+animalNumber)
-  const animalNumberIdx = header.findIndex(col => col === 'ANIMAL_NUMBER')
+  // Use NID columns which contain BBG-prefixed numbers (e.g., BBGF1610170092)
+  const nidIdx = header.findIndex(col => col === 'NID')
   const sexIdx = header.findIndex(col => col === 'SEX')
   const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
   
-  // For parents, use *_ANIMAL_NUMBER columns (same numeric format)
-  const damNumberIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
-  const sireNumberIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
+  // For parents, use *_NID columns which have the BBG prefixes
+  const damNidIdx = header.findIndex(col => col === 'DAM_NID')
+  const sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
   
-  if (animalNumberIdx === -1 || sexIdx === -1) return rows
+  if (nidIdx === -1 || sexIdx === -1) return rows
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(animalNumberIdx, sexIdx, birthDateIdx || 0, damNumberIdx || 0, sireNumberIdx || 0)) continue
+    if (record.length <= Math.max(nidIdx, sexIdx, birthDateIdx || 0, damNidIdx || 0, sireNidIdx || 0)) continue
     
-    const animalNumber = record[animalNumberIdx]?.trim()
+    const animalNumber = record[nidIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
     
     rows.push({
       animalNumber,
       sex: record[sexIdx]?.trim() || '',
       birthDate: birthDateIdx >= 0 ? record[birthDateIdx]?.trim() || '' : '',
-      damAnimalNumber: damNumberIdx >= 0 && record[damNumberIdx]?.trim() ? record[damNumberIdx].trim() : null,
-      sireAnimalNumber: sireNumberIdx >= 0 && record[sireNumberIdx]?.trim() ? record[sireNumberIdx].trim() : null,
+      damAnimalNumber: damNidIdx >= 0 && record[damNidIdx]?.trim() ? record[damNidIdx].trim() : null,
+      sireAnimalNumber: sireNidIdx >= 0 && record[sireNidIdx]?.trim() ? record[sireNidIdx].trim() : null,
     })
   }
   

@@ -6,6 +6,33 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/layout/AppShell'
 
+function formatAnimalNumber(raw: string): string {
+  if (!raw) return '—'
+  
+  // Remove BBG, BBGF, BBGM prefixes and whitespace
+  let cleaned = raw.trim()
+    .replace(/^BBG[MF]?\s*/i, '')
+    .replace(/\s+/g, '')
+  
+  if (!cleaned || cleaned === '0') return raw
+  
+  if (cleaned.length >= 6) {
+    const animalNumber = cleaned.slice(-4)
+    const year = cleaned.slice(-6, -4)
+    let studNumber = cleaned.slice(0, -6)
+    
+    if (studNumber.length < 4) {
+      studNumber = studNumber.padStart(4, '0')
+    } else if (studNumber.length > 4) {
+      studNumber = studNumber.slice(0, 4)
+    }
+    
+    return `${studNumber}-${year}-${animalNumber}`
+  }
+  
+  return raw
+}
+
 export function ImportStambookPage() {
   const { profile } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -90,15 +117,15 @@ export function ImportStambookPage() {
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">What gets imported</h3>
         <ul className="mt-2 space-y-1 text-sm text-soil-600">
-          <li>• Animal ID (e.g., BBGF1637180045, BBGM1637230200)</li>
-          <li>• Sex (Female/Male)</li>
+          <li>• Animal ID from NID column (BBGF/BBGM/BBG prefix removed)</li>
+          <li>• Format: stud-year-animal (e.g., 1637-26-0016)</li>
+          <li>• Sex from SEX column (M=Male, F=Female)</li>
           <li>• Birth date</li>
-          <li>• Dam (mother) animal number</li>
-          <li>• Sire (father) animal number</li>
+          <li>• Dam (mother) and Sire (father) links</li>
         </ul>
         <p className="mt-3 text-sm text-soil-600">
           All imported animals receive status <span className="font-semibold text-pasture-800">Stamboek</span> and species <span className="font-semibold text-pasture-800">Goat</span>.
-          Parent relationships are automatically linked if the parent animals exist in the system or are in the same CSV file.
+          Parent relationships are automatically linked when parent animals exist.
         </p>
       </Card>
 
@@ -163,11 +190,11 @@ export function ImportStambookPage() {
               <tbody>
                 {rows.slice(0, 10).map((row, idx) => (
                   <tr key={idx} className="border-b border-field-dark/60">
-                    <td className="py-2 pr-4 text-soil-800">{row.animalNumber}</td>
+                    <td className="py-2 pr-4 text-soil-800">{formatAnimalNumber(row.animalNumber)}</td>
                     <td className="py-2 pr-4 text-soil-600">{row.sex || '—'}</td>
                     <td className="py-2 pr-4 text-soil-600">{row.birthDate || '—'}</td>
-                    <td className="py-2 pr-4 text-soil-600">{row.damAnimalNumber || '—'}</td>
-                    <td className="py-2 text-soil-600">{row.sireAnimalNumber || '—'}</td>
+                    <td className="py-2 pr-4 text-soil-600">{formatAnimalNumber(row.damAnimalNumber || '')}</td>
+                    <td className="py-2 text-soil-600">{formatAnimalNumber(row.sireAnimalNumber || '')}</td>
                   </tr>
                 ))}
                 {rows.length > 10 && (
