@@ -17,29 +17,76 @@ export interface StambookImportResult {
 }
 
 interface ParsedAnimal {
-  tag: string
+  studNumber: string
+  year: string
+  animalNumber: string
+  fullTag: string
   sex: 'male' | 'female' | 'unknown'
   birthDate: string | null
-  damTag: string | null
-  sireTag: string | null
+  damStudNumber: string | null
+  damYear: string | null
+  damAnimalNumber: string | null
+  sireStudNumber: string | null
+  sireYear: string | null
+  sireAnimalNumber: string | null
 }
 
-function normalizeAnimalNumber(raw: string): string | null {
+interface ParsedAnimalNumber {
+  studNumber: string  // 4 digits, zero-padded
+  year: string        // 2 digits
+  animalNumber: string // 4 digits
+  fullTag: string     // Combined year-number format
+}
+
+function parseAnimalNumber(raw: string): ParsedAnimalNumber | null {
   if (!raw) return null
-  // Remove leading zeros and common prefixes
-  const cleaned = raw.trim().replace(/^0+/, '')
-  // Extract the actual animal number (e.g., BBGF1637180045, BBGM1637230200)
-  const match = cleaned.match(/(BBG[MF]?\s*\d+)/i)
-  if (match) {
-    return match[1].replace(/\s+/g, '').toUpperCase()
+  
+  const cleaned = raw.trim()
+  
+  // Format: studNumber(4) + year(2) + animalNumber(4) = 10 digits total
+  // Example: 0114780273 -> stud: 0114, year: 78, animal: 0273
+  if (cleaned.length >= 10) {
+    const studNumber = cleaned.slice(0, 4)
+    const year = cleaned.slice(4, 6)
+    const animalNumber = cleaned.slice(6, 10)
+    
+    return {
+      studNumber,
+      year,
+      animalNumber,
+      fullTag: `${year}-${animalNumber}`,
+    }
   }
-  return cleaned || null
+  
+  // If less than 10 digits, try to parse from the end
+  // Last 4: animal number, Previous 2: year, Rest: stud number (pad to 4)
+  if (cleaned.length >= 6) {
+    const animalNumber = cleaned.slice(-4)
+    const year = cleaned.slice(-6, -4)
+    let studNumber = cleaned.slice(0, -6)
+    
+    // Pad stud number to 4 digits
+    if (studNumber.length < 4) {
+      studNumber = studNumber.padStart(4, '0')
+    } else if (studNumber.length > 4) {
+      studNumber = studNumber.slice(0, 4)
+    }
+    
+    return {
+      studNumber,
+      year,
+      animalNumber,
+      fullTag: `${year}-${animalNumber}`,
+    }
+  }
+  
+  return null
 }
 
 function parseSex(sex: string): 'male' | 'female' | 'unknown' {
   const normalized = sex.trim().toUpperCase()
-  if (normalized === 'F' || normalized === 'FEMALE') return 'female'
-  if (normalized === 'M' || normalized === 'MALE') return 'male'
+  if (normalized === 'F') return 'female'
+  if (normalized === 'M') return 'male'
   return 'unknown'
 }
 
@@ -184,39 +231,31 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   if (headerIndex === -1) return rows
   
   const header = records[headerIndex]
-  // NID columns contain the BBG-prefixed animal numbers we want
-  const nidIdx = header.findIndex(col => col === 'NID')
+  // Use ANIMAL_NUMBER column for the numeric IDs (format: studNumber+year+animalNumber)
   const animalNumberIdx = header.findIndex(col => col === 'ANIMAL_NUMBER')
   const sexIdx = header.findIndex(col => col === 'SEX')
   const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
   
-  // For parents, prefer *_NID columns (BBG-prefixed) over *_ANIMAL_NUMBER
-  const damNidIdx = header.findIndex(col => col === 'DAM_NID')
+  // For parents, use *_ANIMAL_NUMBER columns (same numeric format)
   const damNumberIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
-  const sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
   const sireNumberIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
   
-  // Prefer NID (has BBG prefix), fall back to ANIMAL_NUMBER
-  const primaryIdx = nidIdx >= 0 ? nidIdx : animalNumberIdx
-  const damIdx = damNidIdx >= 0 ? damNidIdx : damNumberIdx
-  const sireIdx = sireNidIdx >= 0 ? sireNidIdx : sireNumberIdx
-  
-  if (primaryIdx === -1 || sexIdx === -1) return rows
+  if (animalNumberIdx === -1 || sexIdx === -1) return rows
   
   // Parse data rows
   for (let i = headerIndex + 1; i < records.length; i++) {
     const record = records[i]
-    if (record.length <= Math.max(primaryIdx, sexIdx, birthDateIdx || 0, damIdx || 0, sireIdx || 0)) continue
+    if (record.length <= Math.max(animalNumberIdx, sexIdx, birthDateIdx || 0, damNumberIdx || 0, sireNumberIdx || 0)) continue
     
-    const animalNumber = record[primaryIdx]?.trim()
+    const animalNumber = record[animalNumberIdx]?.trim()
     if (!animalNumber || animalNumber === '0') continue
     
     rows.push({
       animalNumber,
       sex: record[sexIdx]?.trim() || '',
       birthDate: birthDateIdx >= 0 ? record[birthDateIdx]?.trim() || '' : '',
-      damAnimalNumber: damIdx >= 0 && record[damIdx]?.trim() ? record[damIdx].trim() : null,
-      sireAnimalNumber: sireIdx >= 0 && record[sireIdx]?.trim() ? record[sireIdx].trim() : null,
+      damAnimalNumber: damNumberIdx >= 0 && record[damNumberIdx]?.trim() ? record[damNumberIdx].trim() : null,
+      sireAnimalNumber: sireNumberIdx >= 0 && record[sireNumberIdx]?.trim() ? record[sireNumberIdx].trim() : null,
     })
   }
   
@@ -224,15 +263,25 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
 }
 
 function prepareAnimal(row: StambookImportRow): ParsedAnimal | null {
-  const tag = normalizeAnimalNumber(row.animalNumber)
-  if (!tag) return null
+  const parsed = parseAnimalNumber(row.animalNumber)
+  if (!parsed) return null
+  
+  const damParsed = row.damAnimalNumber ? parseAnimalNumber(row.damAnimalNumber) : null
+  const sireParsed = row.sireAnimalNumber ? parseAnimalNumber(row.sireAnimalNumber) : null
   
   return {
-    tag,
+    studNumber: parsed.studNumber,
+    year: parsed.year,
+    animalNumber: parsed.animalNumber,
+    fullTag: parsed.fullTag,
     sex: parseSex(row.sex),
     birthDate: parseBirthDate(row.birthDate),
-    damTag: normalizeAnimalNumber(row.damAnimalNumber || ''),
-    sireTag: normalizeAnimalNumber(row.sireAnimalNumber || ''),
+    damStudNumber: damParsed?.studNumber || null,
+    damYear: damParsed?.year || null,
+    damAnimalNumber: damParsed?.animalNumber || null,
+    sireStudNumber: sireParsed?.studNumber || null,
+    sireYear: sireParsed?.year || null,
+    sireAnimalNumber: sireParsed?.animalNumber || null,
   }
 }
 
@@ -251,7 +300,7 @@ export async function importStambookAnimals(
   // Get existing animals to check for duplicates
   const { data: existingAnimals, error: fetchError } = await supabase
     .from('animals')
-    .select('id, tag_number, stud_tag_number, studbook_number')
+    .select('id, stud_number, id_year, id_number, tag_number')
     .eq('company_id', companyId)
   
   if (fetchError) {
@@ -259,15 +308,12 @@ export async function importStambookAnimals(
     return result
   }
   
-  const existingTags = new Set<string>()
-  const existingById = new Map<string, Animal>()
+  const existingKeys = new Set<string>()
   
   for (const animal of existingAnimals || []) {
-    if (animal.tag_number) existingTags.add(animal.tag_number.toUpperCase())
-    if (animal.stud_tag_number) existingTags.add(animal.stud_tag_number.toUpperCase())
-    if (animal.studbook_number) {
-      existingTags.add(animal.studbook_number.toUpperCase())
-      existingById.set(animal.studbook_number.toUpperCase(), animal as Animal)
+    if (animal.stud_number && animal.id_year && animal.id_number) {
+      const key = `${animal.stud_number}-${animal.id_year}-${animal.id_number}`.toUpperCase()
+      existingKeys.add(key)
     }
   }
   
@@ -283,22 +329,25 @@ export async function importStambookAnimals(
       continue
     }
     
+    // Build unique key for checking existence
+    const uniqueKey = `${parsed.studNumber}-${parsed.year}-${parsed.animalNumber}`.toUpperCase()
+    
     // Check if already exists
-    if (existingTags.has(parsed.tag.toUpperCase())) {
+    if (existingKeys.has(uniqueKey)) {
       result.skipped++
       continue
     }
     
     // Check for duplicates within this import
-    if (animalsByTag.has(parsed.tag.toUpperCase())) {
-      result.warnings.push(`Row ${i + 2}: Duplicate animal ${parsed.tag} in CSV, skipping`)
+    if (animalsByTag.has(uniqueKey)) {
+      result.warnings.push(`Row ${i + 2}: Duplicate animal ${parsed.fullTag} in CSV, skipping`)
       result.skipped++
       continue
     }
     
     const entry = { ...parsed, originalRow: i + 2 }
     toCreate.push(entry)
-    animalsByTag.set(parsed.tag.toUpperCase(), entry)
+    animalsByTag.set(uniqueKey, entry)
   }
   
   if (toCreate.length === 0) {
@@ -314,8 +363,10 @@ export async function importStambookAnimals(
     const animalsToInsert = batch.map(animal => ({
       company_id: companyId,
       created_by: createdBy,
-      studbook_number: animal.tag,
-      tag_number: animal.tag,
+      stud_number: animal.studNumber,
+      id_year: animal.year,
+      id_number: animal.animalNumber,
+      tag_number: animal.fullTag,
       species: 'goat',
       sex: animal.sex,
       birth_date: animal.birthDate,
@@ -325,7 +376,7 @@ export async function importStambookAnimals(
     const { data: inserted, error: insertError } = await supabase
       .from('animals')
       .insert(animalsToInsert)
-      .select('id, tag_number, studbook_number')
+      .select('id, stud_number, id_year, id_number, tag_number')
     
     if (insertError) {
       result.errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${insertError.message}`)
@@ -339,37 +390,47 @@ export async function importStambookAnimals(
   }
   
   // Now link parents
-  // Build a map of all animals (existing + newly created)
-  const allAnimals = new Map<string, string>() // tag -> id
+  // Build a map of all animals by their unique identifiers
+  // Re-fetch created animals with all fields we need
+  const { data: allAnimalsList } = await supabase
+    .from('animals')
+    .select('id, stud_number, id_year, id_number, tag_number')
+    .eq('company_id', companyId)
   
-  for (const animal of existingAnimals || []) {
-    if (animal.tag_number) allAnimals.set(animal.tag_number.toUpperCase(), animal.id)
-    if (animal.stud_tag_number) allAnimals.set(animal.stud_tag_number.toUpperCase(), animal.id)
-    if (animal.studbook_number) allAnimals.set(animal.studbook_number.toUpperCase(), animal.id)
-  }
+  const allAnimals = new Map<string, string>() // unique key -> id
   
-  for (const animal of createdAnimals) {
-    if (animal.studbook_number) allAnimals.set(animal.studbook_number.toUpperCase(), animal.id)
-    if (animal.tag_number) allAnimals.set(animal.tag_number.toUpperCase(), animal.id)
+  for (const animal of allAnimalsList || []) {
+    if (animal.stud_number && animal.id_year && animal.id_number) {
+      const key = `${animal.stud_number}-${animal.id_year}-${animal.id_number}`.toUpperCase()
+      allAnimals.set(key, animal.id)
+    }
   }
   
   // Link parents
-  for (const created of createdAnimals) {
-    const tag = created.studbook_number || created.tag_number
-    if (!tag) continue
+  for (const original of toCreate) {
+    const animalKey = `${original.studNumber}-${original.year}-${original.animalNumber}`.toUpperCase()
+    const animalId = allAnimals.get(animalKey)
+    if (!animalId) continue
     
-    const original = animalsByTag.get(tag.toUpperCase())
-    if (!original) continue
+    let damId: string | null = null
+    let sireId: string | null = null
     
-    const damId = original.damTag ? allAnimals.get(original.damTag.toUpperCase()) : null
-    const sireId = original.sireTag ? allAnimals.get(original.sireTag.toUpperCase()) : null
+    if (original.damStudNumber && original.damYear && original.damAnimalNumber) {
+      const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
+      damId = allAnimals.get(damKey) || null
+    }
+    
+    if (original.sireStudNumber && original.sireYear && original.sireAnimalNumber) {
+      const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
+      sireId = allAnimals.get(sireKey) || null
+    }
     
     if (!damId && !sireId) continue
     
     const updates: Partial<Animal> = {}
     if (damId) {
       updates.dam_id = damId
-      updates.dam_tag_number = original.damTag
+      updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
     }
     if (sireId) {
       updates.sire_id = sireId
@@ -378,10 +439,10 @@ export async function importStambookAnimals(
     const { error: updateError } = await supabase
       .from('animals')
       .update(updates)
-      .eq('id', created.id)
+      .eq('id', animalId)
     
     if (updateError) {
-      result.warnings.push(`Row ${original.originalRow}: Created ${tag} but could not link parents: ${updateError.message}`)
+      result.warnings.push(`Row ${original.originalRow}: Created ${original.fullTag} but could not link parents: ${updateError.message}`)
     }
   }
   
