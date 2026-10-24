@@ -239,9 +239,16 @@ export function parseStambookCsv(csvContent: string): StambookImportRow[] {
   const sexIdx = header.findIndex(col => col === 'SEX')
   const birthDateIdx = header.findIndex(col => col === 'BIRTH_DTM')
   
-  // For parents, use *_NID columns which have the BBG prefixes
-  const damNidIdx = header.findIndex(col => col === 'DAM_NID')
-  const sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
+  // Try multiple possible column names for dam and sire
+  let damNidIdx = header.findIndex(col => col === 'DAM_NID')
+  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col.includes('DAM') && col.includes('NID'))
+  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col === 'DAM_ANIMAL_NUMBER')
+  if (damNidIdx === -1) damNidIdx = header.findIndex(col => col.toUpperCase().includes('MOTHER'))
+  
+  let sireNidIdx = header.findIndex(col => col === 'SIRE_NID')
+  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col.includes('SIRE') && col.includes('NID'))
+  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col === 'SIRE_ANIMAL_NUMBER')
+  if (sireNidIdx === -1) sireNidIdx = header.findIndex(col => col.toUpperCase().includes('FATHER'))
   
   if (nidIdx === -1 || sexIdx === -1) return rows
   
@@ -410,33 +417,53 @@ export async function importStambookAnimals(
   }
   
   // Link parents
+  let parentsLinked = 0
+  let damIdsLinked = 0
+  let sireIdsLinked = 0
+  let damTagsSet = 0
+  let sireNamesSet = 0
+  let animalsWithParentInfo = 0
+  
   for (const original of toCreate) {
     const animalKey = `${original.studNumber}-${original.year}-${original.animalNumber}`.toUpperCase()
     const animalId = allAnimals.get(animalKey)
-    if (!animalId) continue
+    if (!animalId) {
+      result.warnings.push(`Row ${original.originalRow}: Could not find created animal ${original.fullTag} for parent linking`)
+      continue
+    }
     
     const updates: Partial<Animal> = {}
+    const hasDamInfo = original.damStudNumber && original.damYear && original.damAnimalNumber
+    const hasSireInfo = original.sireStudNumber && original.sireYear && original.sireAnimalNumber
+    
+    if (hasDamInfo || hasSireInfo) {
+      animalsWithParentInfo++
+    }
     
     // Link dam if info available
-    if (original.damStudNumber && original.damYear && original.damAnimalNumber) {
+    if (hasDamInfo) {
       const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
       const damId = allAnimals.get(damKey) || null
       if (damId) {
         updates.dam_id = damId
+        damIdsLinked++
       }
       // Always set fallback tag even if animal not found yet
       updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
+      damTagsSet++
     }
     
     // Link sire if info available
-    if (original.sireStudNumber && original.sireYear && original.sireAnimalNumber) {
+    if (hasSireInfo) {
       const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
       const sireId = allAnimals.get(sireKey) || null
       if (sireId) {
         updates.sire_id = sireId
+        sireIdsLinked++
       }
       // Always set fallback name even if animal not found yet
       updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
+      sireNamesSet++
     }
     
     // Skip if nothing to update
@@ -449,6 +476,24 @@ export async function importStambookAnimals(
     
     if (updateError) {
       result.warnings.push(`Row ${original.originalRow}: Created ${original.fullTag} but could not link parents: ${updateError.message}`)
+    } else {
+      parentsLinked++
+    }
+  }
+  
+  // Add summary of parent linking
+  if (animalsWithParentInfo === 0) {
+    result.warnings.push(`⚠ No parent information found in CSV - check that DAM_NID and SIRE_NID columns exist and contain values`)
+  } else {
+    result.warnings.push(`Found parent info for ${animalsWithParentInfo} animal(s)`)
+    if (parentsLinked > 0) {
+      result.warnings.push(`✓ Updated parent links for ${parentsLinked} animal(s)`)
+      if (damIdsLinked > 0 || sireIdsLinked > 0) {
+        result.warnings.push(`  - Linked ${damIdsLinked} mother(s) and ${sireIdsLinked} father(s) to animals in database`)
+      }
+      if (damTagsSet > 0 || sireNamesSet > 0) {
+        result.warnings.push(`  - Set ${damTagsSet} mother tag(s) and ${sireNamesSet} father name(s) as external references`)
+      }
     }
   }
   
