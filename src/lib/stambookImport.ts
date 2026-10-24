@@ -384,6 +384,18 @@ function prepareAnimal(row: StambookImportRow): ParsedAnimal | null {
   const damParsed = row.damAnimalNumber ? parseAnimalNumber(row.damAnimalNumber) : null
   const sireParsed = row.sireAnimalNumber ? parseAnimalNumber(row.sireAnimalNumber) : null
   
+  // Debug specific animal
+  if (parsed.fullTag === '1637-26-0009') {
+    console.log('DEBUG: Parsing animal 1637-26-0009:', {
+      rawAnimalNumber: row.animalNumber,
+      parsed,
+      rawDam: row.damAnimalNumber,
+      damParsed,
+      rawSire: row.sireAnimalNumber,
+      sireParsed
+    })
+  }
+  
   return {
     studNumber: parsed.studNumber,
     year: parsed.year,
@@ -569,6 +581,28 @@ export async function importStambookAnimals(
       // Always set fallback name even if animal not found yet
       updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
       sireNamesSet++
+    }
+    
+    // Debug specific animal
+    if (original.fullTag === '1637-26-0009') {
+      console.log('DEBUG: Linking parents for 1637-26-0009:', {
+        animalId,
+        hasDamInfo,
+        hasSireInfo,
+        damData: hasDamInfo ? {
+          studNumber: original.damStudNumber,
+          year: original.damYear,
+          animalNumber: original.damAnimalNumber,
+          damKey: `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase(),
+        } : null,
+        sireData: hasSireInfo ? {
+          studNumber: original.sireStudNumber,
+          year: original.sireYear,
+          animalNumber: original.sireAnimalNumber,
+          sireKey: `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase(),
+        } : null,
+        updates
+      })
     }
     
     // Skip if nothing to update
