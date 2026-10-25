@@ -175,42 +175,6 @@ function parentCoverage(animal: Animal): 'both' | 'missing' {
   return dam && sire ? 'both' : 'missing'
 }
 
-function FilterChip({
-  active,
-  label,
-  count,
-  onClick,
-}: {
-  active: boolean
-  label: string
-  count?: number
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
-        active
-          ? 'bg-pasture-800 text-white shadow-sm shadow-pasture-900/15'
-          : 'bg-panel text-soil-700 ring-1 ring-field-dark ring-inset hover:bg-pasture-50'
-      }`}
-    >
-      {label}
-      {typeof count === 'number' && (
-        <span
-          className={`rounded-full px-1.5 py-0.5 text-[0.65rem] tabular-nums ${
-            active ? 'bg-white/15 text-white' : 'bg-panel-muted text-soil-500'
-          }`}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  )
-}
-
 function FilterSelect({
   label,
   value,
@@ -224,22 +188,18 @@ function FilterSelect({
 }) {
   const active = value !== 'all'
   return (
-    <label className="inline-flex items-center gap-2">
-      <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`h-9 rounded-full bg-panel px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-pasture-100 ${
-          active
-            ? 'border border-pasture-700 text-pasture-900 ring-2 ring-pasture-100'
-            : 'border border-field-dark text-soil-700'
-        }`}
-      >
-        {children}
-      </select>
-    </label>
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className={`h-8 max-w-full rounded-full bg-panel px-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-pasture-100 ${
+        active
+          ? 'border border-pasture-700 text-pasture-900'
+          : 'border border-field-dark text-soil-600'
+      }`}
+    >
+      {children}
+    </select>
   )
 }
 
@@ -355,11 +315,6 @@ export function AnimalsPage() {
     }
     return true
   }
-
-  const countMatching = (
-    ignore: 'status' | 'sex' | 'place' | 'breed' | 'parents' | 'species',
-    predicate: (animal: Animal) => boolean,
-  ) => animals.filter((animal) => matchesFilters(animal, ignore) && predicate(animal)).length
 
   const baseAnimals = useMemo(() => {
     return animals.filter((animal) => matchesFilters(animal))
@@ -579,139 +534,81 @@ export function AnimalsPage() {
               totalCount={animals.length}
             />
 
-            <div className="mt-4 space-y-3 rounded-2xl bg-panel-muted/80 p-3 ring-1 ring-field-dark/80">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
-                  Status
-                </span>
-                <FilterChip
-                  active={statusFilter === 'all'}
-                  label="All"
-                  count={countMatching('status', () => true)}
-                  onClick={() => setStatusFilter('all')}
-                />
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <FilterSelect
+                label="Status"
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value as StatusFilter)}
+              >
+                <option value="all">All statuses</option>
                 {animalStatusOptions.map((option) => {
                   const present = animals.some((animal) => recordedStatus(animal) === option.value)
                   if (!present && statusFilter !== option.value) return null
                   return (
-                    <FilterChip
-                      key={option.value}
-                      active={statusFilter === option.value}
-                      label={option.label}
-                      count={countMatching('status', (animal) => recordedStatus(animal) === option.value)}
-                      onClick={() => setStatusFilter(option.value)}
-                    />
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   )
                 })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
-                  Sex
-                </span>
-                <FilterChip
-                  active={sexFilter === 'all'}
-                  label="All"
-                  count={countMatching('sex', () => true)}
-                  onClick={() => setSexFilter('all')}
-                />
-                <FilterChip
-                  active={sexFilter === 'female'}
-                  label="Female"
-                  count={countMatching('sex', (animal) => recordedSex(animal) === 'female')}
-                  onClick={() => setSexFilter('female')}
-                />
-                <FilterChip
-                  active={sexFilter === 'male'}
-                  label="Male"
-                  count={countMatching('sex', (animal) => recordedSex(animal) === 'male')}
-                  onClick={() => setSexFilter('male')}
-                />
-                {(sexFilter === 'unknown' || animals.some((animal) => recordedSex(animal) === 'unknown')) && (
-                  <FilterChip
-                    active={sexFilter === 'unknown'}
-                    label="Unknown"
-                    count={countMatching('sex', (animal) => recordedSex(animal) === 'unknown')}
-                    onClick={() => setSexFilter('unknown')}
-                  />
+              </FilterSelect>
+              <FilterSelect
+                label="Sex"
+                value={sexFilter}
+                onChange={(value) => setSexFilter(value as SexFilter)}
+              >
+                <option value="all">Any sex</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                {(sexFilter === 'unknown' ||
+                  animals.some((animal) => recordedSex(animal) === 'unknown')) && (
+                  <option value="unknown">Unknown sex</option>
                 )}
-                <span className="ml-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
-                  Parents
-                </span>
-                <FilterChip
-                  active={parentsFilter === 'all'}
-                  label="All"
-                  count={countMatching('parents', () => true)}
-                  onClick={() => setParentsFilter('all')}
-                />
-                <FilterChip
-                  active={parentsFilter === 'both'}
-                  label="Both parents"
-                  count={countMatching('parents', (animal) => parentCoverage(animal) === 'both')}
-                  onClick={() => setParentsFilter('both')}
-                />
-                <FilterChip
-                  active={parentsFilter === 'missing'}
-                  label="Missing a parent"
-                  count={countMatching('parents', (animal) => parentCoverage(animal) === 'missing')}
-                  onClick={() => setParentsFilter('missing')}
-                />
-              </div>
-
-              {(placeOptions.names.length + (placeOptions.missing ? 1 : 0) > 1 ||
-                breedOptions.names.length + (breedOptions.missing ? 1 : 0) > 1 ||
-                speciesOptions.length > 1) && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  {placeOptions.names.length + (placeOptions.missing ? 1 : 0) > 1 && (
-                    <FilterSelect label="Camp" value={placeFilter} onChange={setPlaceFilter}>
-                      <option value="all">All camps</option>
-                      {placeOptions.names.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                      {placeOptions.missing && <option value="—">No camp</option>}
-                    </FilterSelect>
-                  )}
-                  {breedOptions.names.length + (breedOptions.missing ? 1 : 0) > 1 && (
-                    <FilterSelect label="Breed" value={breedFilter} onChange={setBreedFilter}>
-                      <option value="all">All breeds</option>
-                      {breedOptions.names.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                      {breedOptions.missing && <option value="—">No breed</option>}
-                    </FilterSelect>
-                  )}
-                  {speciesOptions.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
-                        Species
-                      </span>
-                      <FilterChip
-                        active={speciesFilter === 'all'}
-                        label="All"
-                        onClick={() => setSpeciesFilter('all')}
-                      />
-                      {speciesOptions.map((species) => (
-                        <FilterChip
-                          key={species}
-                          active={speciesFilter === species}
-                          label={formatSpecies(species)}
-                          count={countMatching('species', (animal) => animal.species?.trim() === species)}
-                          onClick={() => setSpeciesFilter(species)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+              </FilterSelect>
+              <FilterSelect
+                label="Parents"
+                value={parentsFilter}
+                onChange={(value) => setParentsFilter(value as ParentsFilter)}
+              >
+                <option value="all">Any parents</option>
+                <option value="both">Both parents</option>
+                <option value="missing">Missing a parent</option>
+              </FilterSelect>
+              {placeOptions.names.length + (placeOptions.missing ? 1 : 0) > 1 && (
+                <FilterSelect label="Camp" value={placeFilter} onChange={setPlaceFilter}>
+                  <option value="all">All camps</option>
+                  {placeOptions.names.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                  {placeOptions.missing && <option value="—">No camp</option>}
+                </FilterSelect>
               )}
-
+              {breedOptions.names.length + (breedOptions.missing ? 1 : 0) > 1 && (
+                <FilterSelect label="Breed" value={breedFilter} onChange={setBreedFilter}>
+                  <option value="all">All breeds</option>
+                  {breedOptions.names.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                  {breedOptions.missing && <option value="—">No breed</option>}
+                </FilterSelect>
+              )}
+              {speciesOptions.length > 1 && (
+                <FilterSelect label="Species" value={speciesFilter} onChange={setSpeciesFilter}>
+                  <option value="all">All species</option>
+                  {speciesOptions.map((species) => (
+                    <option key={species} value={species}>
+                      {formatSpecies(species)}
+                    </option>
+                  ))}
+                </FilterSelect>
+              )}
               {filtersActive && (
                 <button
                   type="button"
-                  className="text-xs font-semibold text-pasture-800 hover:text-pasture-700"
+                  className="h-8 px-2 text-xs font-semibold text-pasture-800 hover:text-pasture-700"
                   onClick={() => {
                     setStatusFilter('all')
                     setSexFilter('all')
@@ -721,7 +618,7 @@ export function AnimalsPage() {
                     setSpeciesFilter('all')
                   }}
                 >
-                  Clear filters
+                  Clear
                 </button>
               )}
             </div>
