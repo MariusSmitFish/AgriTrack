@@ -90,6 +90,17 @@ export interface Animal {
   }) | null
 }
 
+export interface FarmBackup {
+  id: string
+  company_id: string
+  created_by: string | null
+  storage_path: string
+  file_name: string
+  file_size: number | null
+  animal_count: number
+  created_at: string
+}
+
 export interface AnimalPhoto {
   id: string
   company_id: string

@@ -16,6 +16,7 @@ export function CompanyAdminLayout() {
     { to: '/app/births', label: 'Births' },
     { to: '/app/locations', label: 'Locations' },
     { to: '/app/configurations', label: 'Configurations' },
+    { to: '/app/backups', label: 'Backups' },
     ...(isAdmin ? [{ to: '/app/users', label: 'Team' }] : []),
   ]
 

@@ -19,6 +19,7 @@ import { StamboekPage } from './pages/company/StamboekPage'
 import { FamilyTreePage } from './pages/company/FamilyTreePage'
 import { LocationsPage } from './pages/company/LocationsPage'
 import { ConfigurationsPage } from './pages/company/ConfigurationsPage'
+import { BackupsPage } from './pages/company/BackupsPage'
 import { BreedingPage } from './pages/company/BreedingPage'
 import { CaptureBirthPage } from './pages/company/CaptureBirthPage'
 import { InstallPrompt } from './components/pwa/InstallPrompt'
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="births" element={<CaptureBirthPage />} />
               <Route path="locations" element={<LocationsPage />} />
               <Route path="configurations" element={<ConfigurationsPage />} />
+              <Route path="backups" element={<BackupsPage />} />
             </Route>
           </Route>
 
