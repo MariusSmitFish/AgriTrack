@@ -42,19 +42,11 @@ function AnimalListActions({
   downloadingTemplate,
   onExport,
   onDownloadTemplate,
-  canDeleteStamboek,
-  stamboekCount,
-  deletingStamboek,
-  onDeleteStamboek,
 }: {
   canExport: boolean
   downloadingTemplate: boolean
   onExport: () => void
   onDownloadTemplate: () => void
-  canDeleteStamboek: boolean
-  stamboekCount: number
-  deletingStamboek: boolean
-  onDeleteStamboek: () => void
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -125,31 +117,9 @@ function AnimalListActions({
           <Link role="menuitem" to="/app/animals/import" className={menuItemClass} onClick={close}>
             Upload Excel
           </Link>
-          <Link
-            role="menuitem"
-            to="/app/animals/import-stambook"
-            className={menuItemClass}
-            onClick={close}
-          >
-            Import Stambook
-          </Link>
           <Link role="menuitem" to="/app/family-trees" className={menuItemClass} onClick={close}>
             Family tree
           </Link>
-          {canDeleteStamboek && (
-            <button
-              type="button"
-              role="menuitem"
-              className={`${menuItemClass} border-t border-field-dark text-red-700 hover:bg-red-50`}
-              disabled={deletingStamboek}
-              onClick={() => {
-                close()
-                onDeleteStamboek()
-              }}
-            >
-              {deletingStamboek ? 'Deleting...' : `Delete ${stamboekCount} stamboek`}
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -218,7 +188,6 @@ export function AnimalsPage() {
   const [breedFilter, setBreedFilter] = useState('all')
   const [parentsFilter, setParentsFilter] = useState<ParentsFilter>('all')
   const [speciesFilter, setSpeciesFilter] = useState('all')
-  const [deletingStamboek, setDeletingStamboek] = useState(false)
   const deferredQuery = useDeferredValue(query)
 
   const downloadTemplate = async () => {
@@ -319,10 +288,6 @@ export function AnimalsPage() {
   const baseAnimals = useMemo(() => {
     return animals.filter((animal) => matchesFilters(animal))
   }, [animals, statusFilter, sexFilter, placeFilter, breedFilter, parentsFilter, speciesFilter])
-
-  const stamboekCount = useMemo(() => {
-    return animals.filter(a => a.status === 'stamboek').length
-  }, [animals])
 
   const exactTag = exactTagQuery(deferredQuery)
   const tagMatches = useMemo(() => {
@@ -440,44 +405,6 @@ export function AnimalsPage() {
     }
   }
 
-  const handleDeleteAllStamboek = async () => {
-    const stamboekAnimals = animals.filter((a) => a.status === 'stamboek')
-    const count = stamboekAnimals.length
-    
-    if (count === 0) {
-      setError('No stamboek animals to delete.')
-      return
-    }
-
-    if (
-      !window.confirm(
-        `Delete all ${count} stamboek ${count === 1 ? 'animal' : 'animals'}? This action cannot be undone. Photos, documents, health records, and show results will also be removed.`,
-      )
-    ) {
-      return
-    }
-
-    setError('')
-    setSuccess('')
-    setDeletingStamboek(true)
-
-    try {
-      // Delete each animal individually to properly clean up storage and handle cascades
-      const deletePromises = stamboekAnimals.map((animal) =>
-        deleteAnimal({ id: animal.id, company_id: animal.company_id })
-      )
-      
-      await Promise.all(deletePromises)
-
-      setAnimals((prev) => prev.filter((a) => a.status !== 'stamboek'))
-      setSuccess(`Deleted ${count} stamboek ${count === 1 ? 'animal' : 'animals'}.`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete stamboek animals')
-    } finally {
-      setDeletingStamboek(false)
-    }
-  }
-
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -490,10 +417,6 @@ export function AnimalsPage() {
           downloadingTemplate={downloadingTemplate}
           onExport={handleExportCsv}
           onDownloadTemplate={downloadTemplate}
-          canDeleteStamboek={profile?.role === 'company_admin' && stamboekCount > 0}
-          stamboekCount={stamboekCount}
-          deletingStamboek={deletingStamboek}
-          onDeleteStamboek={handleDeleteAllStamboek}
         />
       </div>
 

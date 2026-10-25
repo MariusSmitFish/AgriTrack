@@ -9,7 +9,6 @@ import {
 } from '../../lib/stambookImport'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { PageHeader } from '../../components/layout/AppShell'
 
 function formatAnimalNumber(raw: string): string {
   if (!raw) return '—'
@@ -38,7 +37,7 @@ function formatAnimalNumber(raw: string): string {
   return raw
 }
 
-export function ImportStambookPage() {
+export function StamboekImportPanel({ onImported }: { onImported?: () => void }) {
   const { profile } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState('')
@@ -92,6 +91,7 @@ export function ImportStambookPage() {
     try {
       const importResult = await importStambookAnimals(profile.company_id, profile.id, rows)
       setResult(importResult)
+      onImported?.()
       
       const created = importResult.created
       const updated = importResult.updated
@@ -120,11 +120,13 @@ export function ImportStambookPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <PageHeader
-        title="Import Stambook CSV"
-        description="Upload a kraalkaart CSV from stambook. New animals are created with status Stamboek. Animals already on the farm keep their saved details, and empty birth dates, pedigree, studbook number, and schedule are filled in."
-      />
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-display text-lg font-semibold text-pasture-900">Import</h3>
+        <p className="mt-1 text-sm text-soil-600">
+          Upload a kraalkaart CSV. New animals are created with status Stamboek. Animals already on the farm keep their saved details, and empty birth dates, pedigree, studbook number, and schedule are filled in.
+        </p>
+      </div>
 
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">What gets imported</h3>
@@ -176,7 +178,7 @@ export function ImportStambookPage() {
         <div className="rounded-xl bg-pasture-50 px-3 py-3 text-sm text-pasture-900">
           <p>{success}</p>
           <Link to="/app/animals" className="mt-2 inline-block font-semibold text-pasture-800">
-            Back to animals
+            View animals
           </Link>
         </div>
       )}
@@ -283,9 +285,6 @@ export function ImportStambookPage() {
         </Card>
       )}
 
-      <Link to="/app/animals" className="inline-block text-sm font-semibold text-pasture-800">
-        Cancel
-      </Link>
     </div>
   )
 }

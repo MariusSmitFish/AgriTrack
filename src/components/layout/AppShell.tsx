@@ -210,7 +210,7 @@ export function MobileCard({
         {fields.map((field) => (
           <div key={field.label} className="flex justify-between gap-4 text-sm">
             <dt className="text-soil-500">{field.label}</dt>
-            <dd className="truncate text-right font-medium text-soil-800">{field.value}</dd>
+            <dd className="break-words text-right font-medium text-soil-800">{field.value}</dd>
           </div>
         ))}
       </dl>

@@ -22,7 +22,7 @@ import {
   padDigits,
   studbookScheduleOptions,
 } from '../../lib/animals'
-import { animalPlaceLabel, encampmentLabel, locationLabel } from '../../lib/locations'
+import { animalPlaceLabel, encampmentLabel, locationLabel, resolveAnimalPlace } from '../../lib/locations'
 import { AnimalPhotosPanel } from '../../components/animals/AnimalPhotosPanel'
 import { AnimalDocumentsPanel } from '../../components/animals/AnimalDocumentsPanel'
 import { AnimalAchievementsPanel } from '../../components/animals/AnimalAchievementsPanel'
@@ -139,9 +139,13 @@ export function AnimalDetailPage() {
       setDamTag(animalRes.data.dam_tag_number ?? '')
       setSireId(animalRes.data.sire_id ?? '')
       setSireName(animalRes.data.sire_name ?? '')
-      const camp = animalRes.data.encampments
-      setEncampmentId(animalRes.data.encampment_id ?? '')
-      setLocationId(camp?.location_id ?? '')
+      const place = resolveAnimalPlace(
+        animalRes.data,
+        locationsRes.error ? [] : (locationsRes.data ?? []),
+        encampmentsRes.error ? [] : (encampmentsRes.data ?? []),
+      )
+      setEncampmentId(place.camp?.id ?? animalRes.data.encampment_id ?? '')
+      setLocationId(place.location?.id ?? '')
     }
 
     if (locationsRes.error) setError(locationsRes.error.message)
@@ -175,10 +179,11 @@ export function AnimalDetailPage() {
     [herdAnimals, animal],
   )
 
+  const resolvedPlace = animal ? resolveAnimalPlace(animal, locations, encampments) : null
   const placeDisplay = animal
     ? animalPlaceLabel({
-        encampment: animal.encampments,
-        location: animal.encampments?.locations,
+        encampment: resolvedPlace?.camp ?? animal.encampments,
+        location: resolvedPlace?.location ?? animal.encampments?.locations,
         legacyLocation: animal.location,
       })
     : '—'
@@ -401,10 +406,16 @@ export function AnimalDetailPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          title={animalLabel(animal)}
-          description="Update this animal’s details, place, and records."
-        />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={animalLabel(animal)}
+            description="Update this animal’s details, place, and records."
+          />
+          <p className="mt-2 text-sm text-soil-700 print:hidden">
+            <span className="font-semibold text-soil-800">Lives at </span>
+            {placeDisplay}
+          </p>
+        </div>
         <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row print:hidden">
           <Button
             type="button"
@@ -673,7 +684,11 @@ export function AnimalDetailPage() {
 
       <CollapsibleCard
         title="Living place"
-        description="Assign this animal to a location and camp."
+        description={
+          placeDisplay === '—'
+            ? 'Assign this animal to a location and camp.'
+            : `Currently ${placeDisplay}.`
+        }
         className="print:hidden"
       >
         <form onSubmit={handleSavePlace} className="grid grid-cols-1 gap-4 md:grid-cols-2">
