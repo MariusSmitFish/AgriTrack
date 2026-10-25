@@ -19,7 +19,10 @@ import {
   animalStatusOptions,
   deleteAnimal,
   digitsOnly,
+  formatSalePrice,
+  formatTagNumber,
   padDigits,
+  parseSalePrice,
   studbookScheduleOptions,
 } from '../../lib/animals'
 import { animalPlaceLabel, encampmentLabel, locationLabel, resolveAnimalPlace } from '../../lib/locations'
@@ -37,7 +40,7 @@ import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
 import { CollapsibleCard, CollapsibleSection } from '../../components/ui/CollapsibleCard'
 import { PageHeader } from '../../components/layout/AppShell'
-import { formatTagNumber } from '../../lib/animals'
+import { todayDateValue } from '../../lib/inoculations'
 
 interface AnimalDetailsForm {
   studbook_number: string
@@ -87,6 +90,11 @@ export function AnimalDetailPage() {
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [savingDetails, setSavingDetails] = useState(false)
   const [savingPedigree, setSavingPedigree] = useState(false)
+  const [savingSale, setSavingSale] = useState(false)
+  const [salePrice, setSalePrice] = useState('')
+  const [soldOn, setSoldOn] = useState('')
+  const [saleError, setSaleError] = useState('')
+  const [saleSuccess, setSaleSuccess] = useState('')
   const [identity, setIdentity] = useState({ stud: '', year: '', number: '' })
   const [details, setDetails] = useState<AnimalDetailsForm | null>(null)
   const [damId, setDamId] = useState('')
@@ -139,6 +147,8 @@ export function AnimalDetailPage() {
       setDamTag(animalRes.data.dam_tag_number ?? '')
       setSireId(animalRes.data.sire_id ?? '')
       setSireName(animalRes.data.sire_name ?? '')
+      setSalePrice(animalRes.data.sale_price == null ? '' : String(animalRes.data.sale_price))
+      setSoldOn(animalRes.data.sold_on ?? todayDateValue())
       const place = resolveAnimalPlace(
         animalRes.data,
         locationsRes.error ? [] : (locationsRes.data ?? []),
@@ -362,6 +372,74 @@ export function AnimalDetailPage() {
     setSuccess('Pedigree updated.')
     await loadAnimal(false)
     setSavingPedigree(false)
+  }
+
+  const handleSaveSale = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!animal) return
+
+    const price = parseSalePrice(salePrice)
+    if (price == null) {
+      setSaleError('Enter a sale price greater than zero.')
+      setSaleSuccess('')
+      return
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(soldOn)) {
+      setSaleError('Choose the date this animal was sold.')
+      setSaleSuccess('')
+      return
+    }
+
+    setSavingSale(true)
+    setSaleError('')
+    setSaleSuccess('')
+
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update({
+        sale_price: price,
+        sold_on: soldOn,
+        status: 'sold',
+      })
+      .eq('id', animal.id)
+
+    if (updateError) {
+      setSaleError(updateError.message)
+      setSavingSale(false)
+      return
+    }
+
+    setSaleSuccess('Sale recorded. This animal is marked sold.')
+    await loadAnimal(false)
+    setSavingSale(false)
+  }
+
+  const handleClearSale = async () => {
+    if (!animal?.sale_price) return
+    if (!window.confirm('Remove the sale price and date for this animal?')) return
+
+    setSavingSale(true)
+    setSaleError('')
+    setSaleSuccess('')
+
+    const { error: updateError } = await supabase
+      .from('animals')
+      .update({
+        sale_price: null,
+        sold_on: null,
+        status: animal.status === 'sold' ? 'active' : animal.status,
+      })
+      .eq('id', animal.id)
+
+    if (updateError) {
+      setSaleError(updateError.message)
+      setSavingSale(false)
+      return
+    }
+
+    setSaleSuccess('Sale removed.')
+    await loadAnimal(false)
+    setSavingSale(false)
   }
 
   if (loading) {
@@ -738,6 +816,55 @@ export function AnimalDetailPage() {
         )}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Sale"
+        description={
+          formatSalePrice(animal.sale_price)
+            ? `Sold for ${formatSalePrice(animal.sale_price)}${animal.sold_on ? ` on ${animal.sold_on}` : ''}.`
+            : 'Record the price when this animal is sold.'
+        }
+        className="print:hidden"
+      >
+        <form onSubmit={handleSaveSale} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input
+            label="Sale price (R)"
+            id="detail-sale-price"
+            inputMode="decimal"
+            value={salePrice}
+            onChange={(e) => setSalePrice(e.target.value)}
+            placeholder="15000"
+            required
+          />
+          <Input
+            label="Date sold"
+            id="detail-sold-on"
+            type="date"
+            value={soldOn}
+            onChange={(e) => setSoldOn(e.target.value)}
+            required
+          />
+          <div className="flex flex-col gap-2 sm:flex-row md:col-span-2">
+            <Button type="submit" disabled={savingSale} className="w-full sm:w-auto">
+              {savingSale ? 'Saving...' : 'Save sale'}
+            </Button>
+            {animal.sale_price != null && animal.sale_price !== '' && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                disabled={savingSale}
+                onClick={() => void handleClearSale()}
+              >
+                Remove sale
+              </Button>
+            )}
+          </div>
+        </form>
+        <p className="mt-3 text-sm text-soil-500">Saving a price marks this animal as sold.</p>
+        {saleError && <p className="mt-3 text-sm text-red-600">{saleError}</p>}
+        {saleSuccess && <p className="mt-3 text-sm text-pasture-800">{saleSuccess}</p>}
       </CollapsibleCard>
 
       <CollapsibleSection title="Breeding" className="print:hidden">

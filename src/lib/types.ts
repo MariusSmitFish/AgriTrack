@@ -78,6 +78,8 @@ export interface Animal {
   sire_stud_code: string | null
   dam_tag_number: string | null
   status: AnimalStatus | null
+  sale_price: number | string | null
+  sold_on: string | null
   encampment_id: string | null
   location: string | null
   notes: string | null

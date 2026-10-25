@@ -229,6 +229,25 @@ export function formatAnimalStatus(status: string | null) {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
+export function formatSalePrice(value: number | string | null | undefined) {
+  if (value == null || value === '') return null
+  const amount = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(amount)) return null
+  return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount)
+}
+
+export function parseSalePrice(value: string) {
+  const trimmed = value.trim().replace(/^R/i, '').replace(/\s/g, '')
+  if (!trimmed) return null
+  const normalized =
+    trimmed.includes(',') && trimmed.includes('.')
+      ? trimmed.replace(/,/g, '')
+      : trimmed.replace(',', '.')
+  const amount = Number(normalized)
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  return Math.round(amount * 100) / 100
+}
+
 function hasRecordedParent(id: string | null, label: string | null) {
   return Boolean(id) || Boolean(label?.trim())
 }
