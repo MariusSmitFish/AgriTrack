@@ -29,7 +29,7 @@ export function SearchField({
         </label>
         {typeof resultCount === 'number' && typeof totalCount === 'number' && totalCount > 0 && (
           <p className="text-xs text-soil-500">
-            {value.trim()
+            {resultCount !== totalCount
               ? `${resultCount} of ${totalCount}`
               : `${totalCount} total`}
           </p>

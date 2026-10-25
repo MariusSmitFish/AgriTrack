@@ -1,8 +1,8 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import type { Animal } from '../../lib/types'
+import type { Animal, AnimalStatus } from '../../lib/types'
 import {
   animalLabel,
   animalsWithExactTag,
@@ -12,7 +12,9 @@ import {
   formatAnimalId,
   formatAnimalSex,
   formatAnimalStatus,
+  formatSpecies,
   formatTagNumber,
+  animalStatusOptions,
   studTagChoiceLabel,
 } from '../../lib/animals'
 import { animalPlaceLabel } from '../../lib/locations'
@@ -154,6 +156,93 @@ function AnimalListActions({
   )
 }
 
+type StatusFilter = 'all' | AnimalStatus
+type SexFilter = 'all' | 'female' | 'male' | 'unknown'
+type ParentsFilter = 'all' | 'both' | 'missing'
+
+function recordedStatus(animal: Animal): AnimalStatus {
+  return animal.status ?? 'active'
+}
+
+function recordedSex(animal: Animal): 'female' | 'male' | 'unknown' {
+  if (animal.sex === 'female' || animal.sex === 'male') return animal.sex
+  return 'unknown'
+}
+
+function parentCoverage(animal: Animal): 'both' | 'missing' {
+  const dam = Boolean(animal.dam_id) || Boolean(animal.dam_tag_number?.trim())
+  const sire = Boolean(animal.sire_id) || Boolean(animal.sire_name?.trim())
+  return dam && sire ? 'both' : 'missing'
+}
+
+function FilterChip({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  count?: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition ${
+        active
+          ? 'bg-pasture-800 text-white shadow-sm shadow-pasture-900/15'
+          : 'bg-panel text-soil-700 ring-1 ring-field-dark ring-inset hover:bg-pasture-50'
+      }`}
+    >
+      {label}
+      {typeof count === 'number' && (
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-[0.65rem] tabular-nums ${
+            active ? 'bg-white/15 text-white' : 'bg-panel-muted text-soil-500'
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  children: ReactNode
+}) {
+  const active = value !== 'all'
+  return (
+    <label className="inline-flex items-center gap-2">
+      <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={`h-9 rounded-full bg-panel px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-pasture-100 ${
+          active
+            ? 'border border-pasture-700 text-pasture-900 ring-2 ring-pasture-100'
+            : 'border border-field-dark text-soil-700'
+        }`}
+      >
+        {children}
+      </select>
+    </label>
+  )
+}
+
 export function AnimalsPage() {
   const { profile } = useAuth()
   const [animals, setAnimals] = useState<Animal[]>([])
@@ -163,7 +252,12 @@ export function AnimalsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [downloadingTemplate, setDownloadingTemplate] = useState(false)
-  const [hideStamboek, setHideStamboek] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [sexFilter, setSexFilter] = useState<SexFilter>('all')
+  const [placeFilter, setPlaceFilter] = useState('all')
+  const [breedFilter, setBreedFilter] = useState('all')
+  const [parentsFilter, setParentsFilter] = useState<ParentsFilter>('all')
+  const [speciesFilter, setSpeciesFilter] = useState('all')
   const [deletingStamboek, setDeletingStamboek] = useState(false)
   const deferredQuery = useDeferredValue(query)
 
@@ -212,10 +306,64 @@ export function AnimalsPage() {
       legacyLocation: animal.location,
     })
 
-  // Apply stamboek filter first
+  const placeOptions = useMemo(() => {
+    const names = new Set<string>()
+    let missing = false
+    for (const animal of animals) {
+      const place = placeFor(animal)
+      if (!place || place === '—') missing = true
+      else names.add(place)
+    }
+    return { names: [...names].sort((a, b) => a.localeCompare(b)), missing }
+  }, [animals])
+
+  const breedOptions = useMemo(() => {
+    const names = new Set<string>()
+    let missing = false
+    for (const animal of animals) {
+      const breed = animal.breed?.trim()
+      if (breed) names.add(breed)
+      else missing = true
+    }
+    return { names: [...names].sort((a, b) => a.localeCompare(b)), missing }
+  }, [animals])
+
+  const speciesOptions = useMemo(() => {
+    const names = new Set<string>()
+    for (const animal of animals) {
+      if (animal.species?.trim()) names.add(animal.species.trim())
+    }
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [animals])
+
+  const filtersActive =
+    statusFilter !== 'all' ||
+    sexFilter !== 'all' ||
+    placeFilter !== 'all' ||
+    breedFilter !== 'all' ||
+    parentsFilter !== 'all' ||
+    speciesFilter !== 'all'
+
+  const matchesFilters = (animal: Animal, ignore?: 'status' | 'sex' | 'place' | 'breed' | 'parents' | 'species') => {
+    if (ignore !== 'status' && statusFilter !== 'all' && recordedStatus(animal) !== statusFilter) return false
+    if (ignore !== 'sex' && sexFilter !== 'all' && recordedSex(animal) !== sexFilter) return false
+    if (ignore !== 'place' && placeFilter !== 'all' && placeFor(animal) !== placeFilter) return false
+    if (ignore !== 'breed' && breedFilter !== 'all' && (animal.breed?.trim() || '—') !== breedFilter) return false
+    if (ignore !== 'parents' && parentsFilter !== 'all' && parentCoverage(animal) !== parentsFilter) return false
+    if (ignore !== 'species' && speciesFilter !== 'all' && (animal.species?.trim() || '—') !== speciesFilter) {
+      return false
+    }
+    return true
+  }
+
+  const countMatching = (
+    ignore: 'status' | 'sex' | 'place' | 'breed' | 'parents' | 'species',
+    predicate: (animal: Animal) => boolean,
+  ) => animals.filter((animal) => matchesFilters(animal, ignore) && predicate(animal)).length
+
   const baseAnimals = useMemo(() => {
-    return hideStamboek ? animals.filter(a => a.status !== 'stamboek') : animals
-  }, [animals, hideStamboek])
+    return animals.filter((animal) => matchesFilters(animal))
+  }, [animals, statusFilter, sexFilter, placeFilter, breedFilter, parentsFilter, speciesFilter])
 
   const stamboekCount = useMemo(() => {
     return animals.filter(a => a.status === 'stamboek').length
@@ -267,7 +415,10 @@ export function AnimalsPage() {
     totalItems,
     start,
     end,
-  } = useClientPagination(filteredAnimals, { resetKey: deferredQuery, pageSize: 20 })
+  } = useClientPagination(filteredAnimals, {
+    resetKey: `${deferredQuery}:${statusFilter}:${sexFilter}:${placeFilter}:${breedFilter}:${parentsFilter}:${speciesFilter}`,
+    pageSize: 20,
+  })
 
   const handleExportCsv = () => {
     exportCsv(
@@ -425,20 +576,155 @@ export function AnimalsPage() {
               onChange={setQuery}
               placeholder="Search animal ID, tag, name, breed, location, status…"
               resultCount={filteredAnimals.length}
-              totalCount={baseAnimals.length}
+              totalCount={animals.length}
             />
 
-            {stamboekCount > 0 && (
-              <label className="mt-4 flex items-center gap-2 text-sm text-soil-700">
-                <input
-                  type="checkbox"
-                  checked={hideStamboek}
-                  onChange={(e) => setHideStamboek(e.target.checked)}
-                  className="h-4 w-4 rounded border-field-dark text-pasture-700 focus:ring-2 focus:ring-pasture-500"
+            <div className="mt-4 space-y-3 rounded-2xl bg-panel-muted/80 p-3 ring-1 ring-field-dark/80">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
+                  Status
+                </span>
+                <FilterChip
+                  active={statusFilter === 'all'}
+                  label="All"
+                  count={countMatching('status', () => true)}
+                  onClick={() => setStatusFilter('all')}
                 />
-                <span>Hide stamboek animals ({stamboekCount})</span>
-              </label>
-            )}
+                {animalStatusOptions.map((option) => {
+                  const present = animals.some((animal) => recordedStatus(animal) === option.value)
+                  if (!present && statusFilter !== option.value) return null
+                  return (
+                    <FilterChip
+                      key={option.value}
+                      active={statusFilter === option.value}
+                      label={option.label}
+                      count={countMatching('status', (animal) => recordedStatus(animal) === option.value)}
+                      onClick={() => setStatusFilter(option.value)}
+                    />
+                  )
+                })}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
+                  Sex
+                </span>
+                <FilterChip
+                  active={sexFilter === 'all'}
+                  label="All"
+                  count={countMatching('sex', () => true)}
+                  onClick={() => setSexFilter('all')}
+                />
+                <FilterChip
+                  active={sexFilter === 'female'}
+                  label="Female"
+                  count={countMatching('sex', (animal) => recordedSex(animal) === 'female')}
+                  onClick={() => setSexFilter('female')}
+                />
+                <FilterChip
+                  active={sexFilter === 'male'}
+                  label="Male"
+                  count={countMatching('sex', (animal) => recordedSex(animal) === 'male')}
+                  onClick={() => setSexFilter('male')}
+                />
+                {(sexFilter === 'unknown' || animals.some((animal) => recordedSex(animal) === 'unknown')) && (
+                  <FilterChip
+                    active={sexFilter === 'unknown'}
+                    label="Unknown"
+                    count={countMatching('sex', (animal) => recordedSex(animal) === 'unknown')}
+                    onClick={() => setSexFilter('unknown')}
+                  />
+                )}
+                <span className="ml-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
+                  Parents
+                </span>
+                <FilterChip
+                  active={parentsFilter === 'all'}
+                  label="All"
+                  count={countMatching('parents', () => true)}
+                  onClick={() => setParentsFilter('all')}
+                />
+                <FilterChip
+                  active={parentsFilter === 'both'}
+                  label="Both parents"
+                  count={countMatching('parents', (animal) => parentCoverage(animal) === 'both')}
+                  onClick={() => setParentsFilter('both')}
+                />
+                <FilterChip
+                  active={parentsFilter === 'missing'}
+                  label="Missing a parent"
+                  count={countMatching('parents', (animal) => parentCoverage(animal) === 'missing')}
+                  onClick={() => setParentsFilter('missing')}
+                />
+              </div>
+
+              {(placeOptions.names.length + (placeOptions.missing ? 1 : 0) > 1 ||
+                breedOptions.names.length + (breedOptions.missing ? 1 : 0) > 1 ||
+                speciesOptions.length > 1) && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {placeOptions.names.length + (placeOptions.missing ? 1 : 0) > 1 && (
+                    <FilterSelect label="Camp" value={placeFilter} onChange={setPlaceFilter}>
+                      <option value="all">All camps</option>
+                      {placeOptions.names.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                      {placeOptions.missing && <option value="—">No camp</option>}
+                    </FilterSelect>
+                  )}
+                  {breedOptions.names.length + (breedOptions.missing ? 1 : 0) > 1 && (
+                    <FilterSelect label="Breed" value={breedFilter} onChange={setBreedFilter}>
+                      <option value="all">All breeds</option>
+                      {breedOptions.names.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                      {breedOptions.missing && <option value="—">No breed</option>}
+                    </FilterSelect>
+                  )}
+                  {speciesOptions.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
+                        Species
+                      </span>
+                      <FilterChip
+                        active={speciesFilter === 'all'}
+                        label="All"
+                        onClick={() => setSpeciesFilter('all')}
+                      />
+                      {speciesOptions.map((species) => (
+                        <FilterChip
+                          key={species}
+                          active={speciesFilter === species}
+                          label={formatSpecies(species)}
+                          count={countMatching('species', (animal) => animal.species?.trim() === species)}
+                          onClick={() => setSpeciesFilter(species)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {filtersActive && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-pasture-800 hover:text-pasture-700"
+                  onClick={() => {
+                    setStatusFilter('all')
+                    setSexFilter('all')
+                    setPlaceFilter('all')
+                    setBreedFilter('all')
+                    setParentsFilter('all')
+                    setSpeciesFilter('all')
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
 
             {exactTag && tagMatches.length > 1 && (
               <div className="mt-4">
@@ -464,7 +750,7 @@ export function AnimalsPage() {
             )}
 
             {filteredAnimals.length === 0 ? (
-              <EmptyState>No animals match your search.</EmptyState>
+              <EmptyState>No animals match these filters.</EmptyState>
             ) : (
               <>
                 <MobileCardList>
