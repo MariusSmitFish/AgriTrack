@@ -11,9 +11,24 @@ export interface StambookImportRow {
 
 export interface StambookImportResult {
   created: number
+  updated: number
+  unchanged: number
   skipped: number
   errors: string[]
   warnings: string[]
+}
+
+interface ExistingStambookAnimal {
+  id: string
+  stud_number: string | null
+  id_year: string | null
+  id_number: string | null
+  sex: Animal['sex']
+  birth_date: string | null
+  dam_id: string | null
+  sire_id: string | null
+  dam_tag_number: string | null
+  sire_name: string | null
 }
 
 interface ParsedAnimal {
@@ -84,6 +99,10 @@ function parseSex(sex: string): 'male' | 'female' | 'unknown' {
   if (normalized === 'F') return 'female'
   if (normalized === 'M') return 'male'
   return 'unknown'
+}
+
+function isBlank(value: string | null | undefined) {
+  return value == null || value.trim() === ''
 }
 
 function parseBirthDate(dateStr: string): string | null {
@@ -419,15 +438,17 @@ export async function importStambookAnimals(
 ): Promise<StambookImportResult> {
   const result: StambookImportResult = {
     created: 0,
+    updated: 0,
+    unchanged: 0,
     skipped: 0,
     errors: [],
     warnings: [],
   }
   
-  // Get existing animals to check for duplicates
+  // Get existing animals so empty pedigree and birth dates can be filled in.
   const { data: existingAnimals, error: fetchError } = await supabase
     .from('animals')
-    .select('id, stud_number, id_year, id_number, tag_number')
+    .select('id, stud_number, id_year, id_number, sex, birth_date, dam_id, sire_id, dam_tag_number, sire_name')
     .eq('company_id', companyId)
   
   if (fetchError) {
@@ -435,18 +456,20 @@ export async function importStambookAnimals(
     return result
   }
   
-  const existingKeys = new Set<string>()
+  const existingByKey = new Map<string, ExistingStambookAnimal>()
   
-  for (const animal of existingAnimals || []) {
+  for (const animal of (existingAnimals || []) as ExistingStambookAnimal[]) {
     if (animal.stud_number && animal.id_year && animal.id_number) {
       const key = `${animal.stud_number}-${animal.id_year}-${animal.id_number}`.toUpperCase()
-      existingKeys.add(key)
+      existingByKey.set(key, animal)
     }
   }
   
   // Parse and prepare animals
-  const toCreate: Array<ParsedAnimal & { originalRow: number }> = []
-  const animalsByTag = new Map<string, ParsedAnimal & { originalRow: number }>()
+  type ImportEntry = ParsedAnimal & { originalRow: number }
+  const toCreate: ImportEntry[] = []
+  const toFill: Array<ImportEntry & { existing: ExistingStambookAnimal }> = []
+  const animalsByTag = new Map<string, ImportEntry>()
   
   for (let i = 0; i < rows.length; i++) {
     const parsed = prepareAnimal(rows[i])
@@ -459,12 +482,6 @@ export async function importStambookAnimals(
     // Build unique key for checking existence
     const uniqueKey = `${parsed.studNumber}-${parsed.year}-${parsed.animalNumber}`.toUpperCase()
     
-    // Check if already exists
-    if (existingKeys.has(uniqueKey)) {
-      result.skipped++
-      continue
-    }
-    
     // Check for duplicates within this import
     if (animalsByTag.has(uniqueKey)) {
       result.warnings.push(`Row ${i + 2}: Duplicate animal ${parsed.fullTag} in CSV, skipping`)
@@ -473,11 +490,13 @@ export async function importStambookAnimals(
     }
     
     const entry = { ...parsed, originalRow: i + 2 }
-    toCreate.push(entry)
     animalsByTag.set(uniqueKey, entry)
+    const existing = existingByKey.get(uniqueKey)
+    if (existing) toFill.push({ ...entry, existing })
+    else toCreate.push(entry)
   }
   
-  if (toCreate.length === 0) {
+  if (toCreate.length === 0 && toFill.length === 0) {
     return result
   }
   
@@ -515,6 +534,90 @@ export async function importStambookAnimals(
       result.created += inserted.length
     }
   }
+
+  // Parents that are not already on the farm become their own Stamboek animals.
+  // Their birth date is unknown, so it stays blank.
+  const parentsToCreate = new Map<string, {
+    studNumber: string
+    year: string
+    animalNumber: string
+    fullTag: string
+    sex: 'male' | 'female'
+    conflict: boolean
+  }>()
+
+  const queueParent = (
+    stud: string | null,
+    year: string | null,
+    number: string | null,
+    sex: 'male' | 'female',
+    childKey: string,
+  ) => {
+    if (!stud || !year || !number) return
+    const key = `${stud}-${year}-${number}`.toUpperCase()
+    if (key === childKey || existingByKey.has(key) || animalsByTag.has(key)) return
+    const current = parentsToCreate.get(key)
+    if (!current) {
+      parentsToCreate.set(key, {
+        studNumber: stud,
+        year,
+        animalNumber: number,
+        fullTag: `${stud}-${year}-${number}`,
+        sex,
+        conflict: false,
+      })
+      return
+    }
+    if (current.sex !== sex && !current.conflict) {
+      current.conflict = true
+      result.warnings.push(
+        `Parent ${current.fullTag} is listed as both a mother and a father. Kept as ${current.sex}.`,
+      )
+    }
+  }
+
+  for (const entry of animalsByTag.values()) {
+    const childKey = `${entry.studNumber}-${entry.year}-${entry.animalNumber}`.toUpperCase()
+    queueParent(entry.damStudNumber, entry.damYear, entry.damAnimalNumber, 'female', childKey)
+    queueParent(entry.sireStudNumber, entry.sireYear, entry.sireAnimalNumber, 'male', childKey)
+  }
+
+  const parentList = [...parentsToCreate.values()]
+  let parentsCreated = 0
+  for (let i = 0; i < parentList.length; i += batchSize) {
+    const batch = parentList.slice(i, i + batchSize)
+    const animalsToInsert = batch.map((parent) => ({
+      company_id: companyId,
+      created_by: createdBy,
+      stud_number: parent.studNumber,
+      id_year: parent.year,
+      id_number: parent.animalNumber,
+      tag_number: parent.fullTag,
+      species: 'goat',
+      sex: parent.sex,
+      birth_date: null,
+      status: 'stamboek' as const,
+    }))
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('animals')
+      .insert(animalsToInsert)
+      .select('id')
+
+    if (insertError) {
+      result.errors.push(`Parents batch ${Math.floor(i / batchSize) + 1}: ${insertError.message}`)
+      continue
+    }
+
+    parentsCreated += inserted?.length ?? 0
+  }
+
+  if (parentsCreated > 0) {
+    result.created += parentsCreated
+    result.warnings.push(
+      `Created ${parentsCreated} parent animal${parentsCreated === 1 ? '' : 's'} as Stamboek records. Birth date left blank.`,
+    )
+  }
   
   // Now link parents
   // Build a map of all animals by their unique identifiers
@@ -533,19 +636,24 @@ export async function importStambookAnimals(
     }
   }
   
-  // Link parents
+  // Link parents, and fill empty birth dates on animals already in the system.
   let parentsLinked = 0
   let damIdsLinked = 0
   let sireIdsLinked = 0
   let damTagsSet = 0
   let sireNamesSet = 0
   let animalsWithParentInfo = 0
+
+  const linkTargets: Array<{ original: ImportEntry; existing: ExistingStambookAnimal | null }> = [
+    ...toCreate.map((original) => ({ original, existing: null })),
+    ...toFill.map((item) => ({ original: item, existing: item.existing })),
+  ]
   
-  for (const original of toCreate) {
+  for (const { original, existing } of linkTargets) {
     const animalKey = `${original.studNumber}-${original.year}-${original.animalNumber}`.toUpperCase()
-    const animalId = allAnimals.get(animalKey)
+    const animalId = existing?.id ?? allAnimals.get(animalKey)
     if (!animalId) {
-      result.warnings.push(`Row ${original.originalRow}: Could not find created animal ${original.fullTag} for parent linking`)
+      result.warnings.push(`Row ${original.originalRow}: Could not find animal ${original.fullTag} to update`)
       continue
     }
     
@@ -556,31 +664,40 @@ export async function importStambookAnimals(
     if (hasDamInfo || hasSireInfo) {
       animalsWithParentInfo++
     }
+
+    if (existing && isBlank(existing.birth_date) && original.birthDate) {
+      updates.birth_date = original.birthDate
+    }
+    if (existing && existing.sex == null && original.sex !== 'unknown') {
+      updates.sex = original.sex
+    }
     
-    // Link dam if info available
-    if (hasDamInfo) {
+    // Link dam when that pedigree field is still empty.
+    if (hasDamInfo && (!existing || existing.dam_id == null || isBlank(existing.dam_tag_number))) {
       const damKey = `${original.damStudNumber}-${original.damYear}-${original.damAnimalNumber}`.toUpperCase()
       const damId = allAnimals.get(damKey) || null
-      if (damId) {
+      if (damId && (!existing || existing.dam_id == null)) {
         updates.dam_id = damId
         damIdsLinked++
       }
-      // Always set fallback tag even if animal not found yet
-      updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
-      damTagsSet++
+      if (!existing || isBlank(existing.dam_tag_number)) {
+        updates.dam_tag_number = `${original.damYear}-${original.damAnimalNumber}`
+        damTagsSet++
+      }
     }
     
-    // Link sire if info available
-    if (hasSireInfo) {
+    // Link sire when that pedigree field is still empty.
+    if (hasSireInfo && (!existing || existing.sire_id == null || isBlank(existing.sire_name))) {
       const sireKey = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`.toUpperCase()
       const sireId = allAnimals.get(sireKey) || null
-      if (sireId) {
+      if (sireId && (!existing || existing.sire_id == null)) {
         updates.sire_id = sireId
         sireIdsLinked++
       }
-      // Always set fallback name even if animal not found yet
-      updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
-      sireNamesSet++
+      if (!existing || isBlank(existing.sire_name)) {
+        updates.sire_name = `${original.sireStudNumber}-${original.sireYear}-${original.sireAnimalNumber}`
+        sireNamesSet++
+      }
     }
     
     // Debug specific animal
@@ -605,8 +722,11 @@ export async function importStambookAnimals(
       })
     }
     
-    // Skip if nothing to update
-    if (Object.keys(updates).length === 0) continue
+    // Nothing empty to fill in.
+    if (Object.keys(updates).length === 0) {
+      if (existing) result.unchanged++
+      continue
+    }
     
     const { error: updateError } = await supabase
       .from('animals')
@@ -614,7 +734,11 @@ export async function importStambookAnimals(
       .eq('id', animalId)
     
     if (updateError) {
-      result.warnings.push(`Row ${original.originalRow}: Created ${original.fullTag} but could not link parents: ${updateError.message}`)
+      const action = existing ? 'update' : 'link parents for'
+      result.warnings.push(`Row ${original.originalRow}: Could not ${action} ${original.fullTag}: ${updateError.message}`)
+    } else if (existing) {
+      result.updated++
+      if (updates.dam_id || updates.dam_tag_number || updates.sire_id || updates.sire_name) parentsLinked++
     } else {
       parentsLinked++
     }
@@ -631,7 +755,7 @@ export async function importStambookAnimals(
         result.warnings.push(`  - Linked ${damIdsLinked} mother(s) and ${sireIdsLinked} father(s) to animals in database`)
       }
       if (damTagsSet > 0 || sireNamesSet > 0) {
-        result.warnings.push(`  - Set ${damTagsSet} mother tag(s) and ${sireNamesSet} father name(s) as external references`)
+        result.warnings.push(`  - Recorded ${damTagsSet} mother tag(s) and ${sireNamesSet} father name(s)`)
       }
     }
   }

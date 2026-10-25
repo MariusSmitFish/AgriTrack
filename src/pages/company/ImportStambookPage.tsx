@@ -1,7 +1,12 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { parseStambookCsv, importStambookAnimals, type StambookImportRow } from '../../lib/stambookImport'
+import {
+  parseStambookCsv,
+  importStambookAnimals,
+  type StambookImportResult,
+  type StambookImportRow,
+} from '../../lib/stambookImport'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/layout/AppShell'
@@ -42,7 +47,7 @@ export function ImportStambookPage() {
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [result, setResult] = useState<{ created: number; skipped: number; errors: string[]; warnings: string[] } | null>(null)
+  const [result, setResult] = useState<StambookImportResult | null>(null)
 
   const onFile = async (file: File | undefined) => {
     setSuccess('')
@@ -88,15 +93,22 @@ export function ImportStambookPage() {
       const importResult = await importStambookAnimals(profile.company_id, profile.id, rows)
       setResult(importResult)
       
+      const created = importResult.created
+      const updated = importResult.updated
       if (importResult.errors.length > 0) {
         setError('Some animals could not be imported. See details below.')
-      } else if (importResult.created === 0) {
-        setSuccess('All animals in this CSV already exist in the system.')
+      } else if (created === 0 && updated === 0) {
+        setSuccess('No empty birth dates or pedigree links to fill in. Saved details were left as they are.')
       } else {
-        setSuccess(`Successfully imported ${importResult.created} animal${importResult.created === 1 ? '' : 's'} with status "Stamboek".`)
+        const parts: string[] = []
+        if (created > 0) parts.push(`created ${created}`)
+        if (updated > 0) parts.push(`updated ${updated}`)
+        setSuccess(
+          `Successfully ${parts.join(' and ')}. New animals have status "Stamboek". Existing animals only gained details that were empty.`,
+        )
       }
       
-      if (importResult.created > 0) {
+      if (created > 0 || updated > 0) {
         setRows([])
         setFileName('')
       }
@@ -111,7 +123,7 @@ export function ImportStambookPage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Import Stambook CSV"
-        description="Upload a CSV file from stambook to create animals. Animals are imported with status 'Stamboek' and skipped if they already exist."
+        description="Upload a CSV file from stambook. New animals are created with status Stamboek. Animals already on the farm keep their saved details, and empty birth dates and pedigree links are filled in."
       />
 
       <Card>
@@ -124,8 +136,9 @@ export function ImportStambookPage() {
           <li>• Dam (mother) and Sire (father) links</li>
         </ul>
         <p className="mt-3 text-sm text-soil-600">
-          All imported animals receive status <span className="font-semibold text-pasture-800">Stamboek</span> and species <span className="font-semibold text-pasture-800">Goat</span>.
-          Parent relationships are automatically linked when parent animals exist.
+          New animals receive status <span className="font-semibold text-pasture-800">Stamboek</span> and species <span className="font-semibold text-pasture-800">Goat</span>.
+          If an animal is already on the farm, only empty birth dates, sex, and pedigree fields are filled in. A saved birth date, sex, mother, or father is left as it is.
+          Parents that are not on the farm yet are added as their own Stamboek animals, with birth date left blank, and then linked.
         </p>
       </Card>
 
@@ -173,7 +186,7 @@ export function ImportStambookPage() {
         <Card>
           <h3 className="font-display font-semibold text-pasture-900">Preview</h3>
           <p className="mt-2 text-sm text-soil-600">
-            Found {rows.length} animal{rows.length === 1 ? '' : 's'} in the CSV file. Animals that already exist will be skipped.
+            Found {rows.length} animal{rows.length === 1 ? '' : 's'} in the CSV file. Animals already on the farm are updated only where birth date or pedigree is empty.
           </p>
           
           <div className="mt-4 overflow-x-auto">
@@ -224,9 +237,19 @@ export function ImportStambookPage() {
                 ✓ Created {result.created} animal{result.created === 1 ? '' : 's'}
               </p>
             )}
+            {result.updated > 0 && (
+              <p className="text-pasture-800">
+                ✓ Updated {result.updated} existing animal{result.updated === 1 ? '' : 's'} (empty birth date, sex, or pedigree only)
+              </p>
+            )}
+            {result.unchanged > 0 && (
+              <p className="text-soil-600">
+                • {result.unchanged} animal{result.unchanged === 1 ? '' : 's'} already had these details
+              </p>
+            )}
             {result.skipped > 0 && (
               <p className="text-soil-600">
-                ⊘ Skipped {result.skipped} animal{result.skipped === 1 ? '' : 's'} (already exists or duplicate)
+                ⊘ Skipped {result.skipped} row{result.skipped === 1 ? '' : 's'} (could not read the animal number, or it was repeated in the file)
               </p>
             )}
           </div>
