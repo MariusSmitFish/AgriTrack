@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -31,6 +31,128 @@ import {
   MobileCardList,
   PageHeader,
 } from '../../components/layout/AppShell'
+
+const menuItemClass =
+  'flex min-h-11 w-full items-center px-3 py-2 text-left text-sm font-semibold text-soil-800 hover:bg-pasture-50 disabled:opacity-50 sm:min-h-0'
+
+function AnimalListActions({
+  canExport,
+  downloadingTemplate,
+  onExport,
+  onDownloadTemplate,
+  canDeleteStamboek,
+  stamboekCount,
+  deletingStamboek,
+  onDeleteStamboek,
+}: {
+  canExport: boolean
+  downloadingTemplate: boolean
+  onExport: () => void
+  onDownloadTemplate: () => void
+  canDeleteStamboek: boolean
+  stamboekCount: number
+  deletingStamboek: boolean
+  onDeleteStamboek: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const close = () => setOpen(false)
+
+  return (
+    <div ref={rootRef} className="relative flex shrink-0 items-center gap-2">
+      <Link to="/app/animals/new">
+        <Button className="whitespace-nowrap">Capture animal</Button>
+      </Link>
+      <Button
+        type="button"
+        variant="secondary"
+        className="whitespace-nowrap"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((current) => !current)}
+      >
+        Actions
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-field-dark bg-panel py-1 shadow-lg"
+        >
+          {canExport && (
+            <button
+              type="button"
+              role="menuitem"
+              className={menuItemClass}
+              onClick={() => {
+                close()
+                onExport()
+              }}
+            >
+              Export CSV
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className={menuItemClass}
+            disabled={downloadingTemplate}
+            onClick={() => {
+              close()
+              onDownloadTemplate()
+            }}
+          >
+            {downloadingTemplate ? 'Preparing template...' : 'Download template'}
+          </button>
+          <Link role="menuitem" to="/app/animals/import" className={menuItemClass} onClick={close}>
+            Upload Excel
+          </Link>
+          <Link
+            role="menuitem"
+            to="/app/animals/import-stambook"
+            className={menuItemClass}
+            onClick={close}
+          >
+            Import Stambook
+          </Link>
+          <Link role="menuitem" to="/app/family-trees" className={menuItemClass} onClick={close}>
+            Family tree
+          </Link>
+          {canDeleteStamboek && (
+            <button
+              type="button"
+              role="menuitem"
+              className={`${menuItemClass} border-t border-field-dark text-red-700 hover:bg-red-50`}
+              disabled={deletingStamboek}
+              onClick={() => {
+                close()
+                onDeleteStamboek()
+              }}
+            >
+              {deletingStamboek ? 'Deleting...' : `Delete ${stamboekCount} stamboek`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function AnimalsPage() {
   const { profile } = useAuth()
@@ -252,50 +374,21 @@ export function AnimalsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader
           title="Animals"
           description="Livestock on your farm. Open an animal to add photos and view history."
         />
-        <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-1 sm:flex-row sm:flex-wrap sm:justify-end">
-          {filteredAnimals.length > 0 && (
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full sm:w-auto"
-              onClick={handleExportCsv}
-            >
-              Export CSV
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            onClick={downloadTemplate}
-            disabled={downloadingTemplate}
-          >
-            {downloadingTemplate ? 'Preparing template...' : 'Download template'}
-          </Button>
-          <Link to="/app/animals/import" className="block w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              Upload Excel
-            </Button>
-          </Link>
-          <Link to="/app/animals/import-stambook" className="block w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              Import Stambook
-            </Button>
-          </Link>
-          <Link to="/app/family-trees" className="block w-full sm:w-auto">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              Family tree
-            </Button>
-          </Link>
-          <Link to="/app/animals/new" className="block w-full sm:w-auto">
-            <Button className="w-full sm:w-auto">+ Capture animal</Button>
-          </Link>
-        </div>
+        <AnimalListActions
+          canExport={filteredAnimals.length > 0}
+          downloadingTemplate={downloadingTemplate}
+          onExport={handleExportCsv}
+          onDownloadTemplate={downloadTemplate}
+          canDeleteStamboek={profile?.role === 'company_admin' && stamboekCount > 0}
+          stamboekCount={stamboekCount}
+          deletingStamboek={deletingStamboek}
+          onDeleteStamboek={handleDeleteAllStamboek}
+        />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -333,35 +426,18 @@ export function AnimalsPage() {
               placeholder="Search animal ID, tag, name, breed, location, status…"
               resultCount={filteredAnimals.length}
               totalCount={baseAnimals.length}
-              enableTagScan
             />
 
             {stamboekCount > 0 && (
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="flex items-center gap-2 text-sm text-soil-700">
-                  <input
-                    type="checkbox"
-                    checked={hideStamboek}
-                    onChange={(e) => setHideStamboek(e.target.checked)}
-                    className="h-4 w-4 rounded border-field-dark text-pasture-700 focus:ring-2 focus:ring-pasture-500"
-                  />
-                  <span>
-                    Hide stamboek animals ({stamboekCount})
-                  </span>
-                </label>
-
-                {profile?.role === 'company_admin' && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full text-red-700 hover:bg-red-50 hover:text-red-800 sm:w-auto"
-                    onClick={handleDeleteAllStamboek}
-                    disabled={deletingStamboek}
-                  >
-                    {deletingStamboek ? 'Deleting...' : `Delete all ${stamboekCount} stamboek`}
-                  </Button>
-                )}
-              </div>
+              <label className="mt-4 flex items-center gap-2 text-sm text-soil-700">
+                <input
+                  type="checkbox"
+                  checked={hideStamboek}
+                  onChange={(e) => setHideStamboek(e.target.checked)}
+                  className="h-4 w-4 rounded border-field-dark text-pasture-700 focus:ring-2 focus:ring-pasture-500"
+                />
+                <span>Hide stamboek animals ({stamboekCount})</span>
+              </label>
             )}
 
             {exactTag && tagMatches.length > 1 && (

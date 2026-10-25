@@ -76,7 +76,6 @@ export function FamilyTreePage() {
             animals={animals}
             selectedId={selectedId}
             onSelect={selectAnimal}
-            enableTagScan
           />
         )}
       </Card>

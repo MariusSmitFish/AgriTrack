@@ -231,7 +231,6 @@ export function CaptureBirthPage() {
                 animals={dams}
                 selectedId={damId}
                 onSelect={selectDam}
-                enableTagScan
                 placeholder="Search the mother’s animal ID or tag…"
               />
               <ParentPicker
@@ -243,7 +242,6 @@ export function CaptureBirthPage() {
                   setSireId(id)
                   setError('')
                 }}
-                enableTagScan
                 placeholder="Search the father’s animal ID or tag…"
               />
             </div>

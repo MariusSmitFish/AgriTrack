@@ -18,7 +18,6 @@ interface ParentPickerProps {
   selectedId: string
   onSelect: (id: string) => void
   placeholder?: string
-  enableTagScan?: boolean
   manualEntry?: string
   onManualEntry?: (tag: string) => void
 }
@@ -30,7 +29,6 @@ export function ParentPicker({
   selectedId,
   onSelect,
   placeholder = 'Search animal ID or tag…',
-  enableTagScan = false,
   manualEntry,
   onManualEntry,
 }: ParentPickerProps) {
@@ -71,7 +69,6 @@ export function ParentPicker({
         placeholder={placeholder}
         resultCount={deferredQuery.trim() ? matches.length : undefined}
         totalCount={deferredQuery.trim() ? animals.length : undefined}
-        enableTagScan={enableTagScan}
       />
 
       {selected && (

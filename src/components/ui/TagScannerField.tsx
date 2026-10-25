@@ -1,8 +1,4 @@
-import { useState } from 'react'
-import { Button } from './Button'
 import { Input } from './Input'
-import { requestTagCamera } from '../../lib/tagCamera'
-import { TagScanDialog } from './TagScanDialog'
 
 interface TagScannerFieldProps {
   label: string
@@ -23,44 +19,17 @@ export function TagScannerField({
   onCommit,
   id,
 }: TagScannerFieldProps) {
-  const [open, setOpen] = useState(false)
-  const [cameraPromise, setCameraPromise] = useState<Promise<MediaStream> | null>(null)
-
   return (
-    <>
-      <div className="space-y-2">
-        <Input
-          id={id}
-          label={label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={(e) => onCommit?.(e.target.value)}
-          placeholder={placeholder}
-        />
-        {hint && <p className="text-xs text-soil-500">{hint}</p>}
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full sm:w-auto"
-          onClick={() => {
-            setCameraPromise(requestTagCamera())
-            setOpen(true)
-          }}
-        >
-          Scan with camera
-        </Button>
-      </div>
-      <TagScanDialog
-        open={open}
-        title={`Scan ${label}`}
-        initialValue={value}
-        cameraPromise={cameraPromise}
-        onClose={() => setOpen(false)}
-        onApply={(next) => {
-          onChange(next)
-          onCommit?.(next)
-        }}
+    <div className="space-y-2">
+      <Input
+        id={id}
+        label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => onCommit?.(e.target.value)}
+        placeholder={placeholder}
       />
-    </>
+      {hint && <p className="text-xs text-soil-500">{hint}</p>}
+    </div>
   )
 }

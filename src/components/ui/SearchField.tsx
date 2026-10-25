@@ -1,8 +1,4 @@
-import { useState, type InputHTMLAttributes } from 'react'
-import { exactTagQuery, normalizeTagNumber, tagNumberDraft } from '../../lib/animals'
-import { Button } from './Button'
-import { requestTagCamera } from '../../lib/tagCamera'
-import { TagScanDialog } from './TagScanDialog'
+import type { InputHTMLAttributes } from 'react'
 
 interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> {
   value: string
@@ -10,7 +6,6 @@ interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
   label?: string
   resultCount?: number
   totalCount?: number
-  enableTagScan?: boolean
 }
 
 export function SearchField({
@@ -20,18 +15,11 @@ export function SearchField({
   placeholder = 'Search…',
   resultCount,
   totalCount,
-  enableTagScan = false,
   id,
   className = '',
   ...props
 }: SearchFieldProps) {
   const inputId = id ?? 'search'
-  const [scannerOpen, setScannerOpen] = useState(false)
-  const [cameraPromise, setCameraPromise] = useState<Promise<MediaStream> | null>(null)
-
-  const applyScannedTag = (raw: string) => {
-    onChange(normalizeTagNumber(raw)?.tag ?? exactTagQuery(raw) ?? tagNumberDraft(raw))
-  }
 
   return (
     <div className={`space-y-1 ${className}`}>
@@ -79,29 +67,6 @@ export function SearchField({
           </button>
         )}
       </div>
-      {enableTagScan && (
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full sm:w-auto"
-          onClick={() => {
-            setCameraPromise(requestTagCamera())
-            setScannerOpen(true)
-          }}
-        >
-          Scan tag
-        </Button>
-      )}
-      {enableTagScan && (
-        <TagScanDialog
-          open={scannerOpen}
-          title="Scan tag"
-          initialValue={value}
-          cameraPromise={cameraPromise}
-          onClose={() => setScannerOpen(false)}
-          onApply={applyScannedTag}
-        />
-      )}
     </div>
   )
 }
