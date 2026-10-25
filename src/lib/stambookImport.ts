@@ -7,6 +7,9 @@ export interface StambookImportRow {
   birthDate: string
   damAnimalNumber: string | null
   sireAnimalNumber: string | null
+  studbookNumber: string | null
+  studbookSchedule: 'A' | 'B' | 'SP' | null
+  breed: string | null
 }
 
 export interface StambookImportResult {
@@ -29,6 +32,9 @@ interface ExistingStambookAnimal {
   sire_id: string | null
   dam_tag_number: string | null
   sire_name: string | null
+  studbook_number: string | null
+  studbook_schedule: Animal['studbook_schedule']
+  breed: string | null
 }
 
 interface ParsedAnimal {
@@ -44,6 +50,9 @@ interface ParsedAnimal {
   sireStudNumber: string | null
   sireYear: string | null
   sireAnimalNumber: string | null
+  studbookNumber: string | null
+  studbookSchedule: 'A' | 'B' | 'SP' | null
+  breed: string | null
 }
 
 interface ParsedAnimalNumber {
@@ -131,268 +140,127 @@ function parseBirthDate(dateStr: string): string | null {
   return null
 }
 
-export function parseStambookCsv(csvContent: string): StambookImportRow[] {
-  const rows: StambookImportRow[] = []
-  
-  // Normalize line endings
-  let normalized = csvContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  
-  // This CSV uses comma delimiters with quoted fields and "" for escaping quotes
-  // Handle multi-line records by tracking quote balance
-  const lines = normalized.split('\n')
+/** Quoted kraalkaart rows keep the farm address on several lines. */
+function parseCsvRecords(csvContent: string): string[][] {
+  const input = csvContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const records: string[][] = []
-  let currentRecordLines: string[] = []
-  let expectedFieldCount = 0
-  
-  for (const line of lines) {
-    currentRecordLines.push(line)
-    
-    // Count quotes to detect complete records (even count = potentially complete)
-    const allLines = currentRecordLines.join('\n')
-    let quoteCount = 0
-    for (const char of allLines) {
-      if (char === '"') quoteCount++
-    }
-    
-    // Even number of quotes means record might be complete
-    // But we need to verify by parsing it
-    if (quoteCount % 2 === 0) {
-      let recordLine = currentRecordLines.join('\n').trim()
-      if (recordLine) {
-        // Remove outer quotes if the entire record is wrapped
-        if (recordLine.startsWith('"') && recordLine.endsWith('"')) {
-          recordLine = recordLine.slice(1, -1)
-        }
-        
-        // Parse CSV: comma-separated fields with "" escaping quotes
-        const fields: string[] = []
-        let currentField = ''
-        let inQuotes = false
-        let i = 0
-        
-        while (i < recordLine.length) {
-          const char = recordLine[i]
-          const nextChar = recordLine[i + 1]
-          
-          if (char === '"' && nextChar === '"') {
-            // Escaped quote: "" becomes "
-            currentField += '"'
-            i += 2
-          } else if (char === '"') {
-            // Toggle quote mode
-            inQuotes = !inQuotes
-            i++
-          } else if (char === ',' && !inQuotes) {
-            // Field separator
-            fields.push(currentField.trim())
-            currentField = ''
-            i++
-          } else {
-            // Regular character
-            currentField += char
-            i++
-          }
-        }
-        
-        // Add last field
-        if (currentField || fields.length > 0) {
-          fields.push(currentField.trim())
-        }
-        
-        // Clean fields: remove surrounding quotes (handle multiple layers)
-        const cleanFields = fields.map(f => {
-          let cleaned = f.trim()
-          // Remove surrounding quotes if present (may need to do this multiple times)
-          while (cleaned.startsWith('"') && cleaned.endsWith('"') && cleaned.length > 1) {
-            cleaned = cleaned.slice(1, -1)
-          }
-          return cleaned
-        })
-        
-        // Set expected field count from first record (header)
-        if (records.length === 0 && cleanFields.length > 10) {
-          expectedFieldCount = cleanFields.length
-          console.log('Expected field count set to:', expectedFieldCount)
-        }
-        
-        // Only accept record if it has the exact field count as header
-        if (records.length === 0 && cleanFields.length > 10) {
-          // Always accept header
-          records.push(cleanFields)
-          currentRecordLines = []
-        } else if (cleanFields.length === expectedFieldCount) {
-          // Only accept data rows with exact match
-          records.push(cleanFields)
-          currentRecordLines = []
-        } else {
-          // Not the right field count yet
-          if (records.length <= 2) {
-            console.log(`Record ${records.length}: Got ${cleanFields.length} fields, expected ${expectedFieldCount}. Lines accumulated: ${currentRecordLines.length}`)
-          }
-          // Keep accumulating lines unless we've accumulated too many
-          if (currentRecordLines.length > 10) {
-            // Safety limit: give up and reset after 10 lines
-            console.warn(`Gave up on record after 10 lines. Field count: ${cleanFields.length}, expected: ${expectedFieldCount}`)
-            currentRecordLines = []
-          }
-          // else: keep accumulating, multi-line records need more lines
-        }
+  let record: string[] = []
+  let field = ''
+  let inQuotes = false
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i]
+    const next = input[i + 1]
+
+    if (inQuotes) {
+      if (char === '"' && next === '"') {
+        field += '"'
+        i++
+      } else if (char === '"') {
+        inQuotes = false
+      } else {
+        field += char
       }
-      // else: odd quote count, keep accumulating
+      continue
+    }
+
+    if (char === '"') {
+      inQuotes = true
+    } else if (char === ',') {
+      record.push(field.trim())
+      field = ''
+    } else if (char === '\n') {
+      record.push(field.trim())
+      if (record.some((cell) => cell !== '')) records.push(record)
+      record = []
+      field = ''
+    } else {
+      field += char
     }
   }
-  
-  if (records.length === 0) return rows
-  
-  // Find header
-  let headerIndex = -1
-  for (let i = 0; i < Math.min(records.length, 5); i++) {
-    const record = records[i]
-    if (record.some(field => field === 'ANIMAL_NUMBER') && 
-        record.some(field => field === 'SEX')) {
-      headerIndex = i
-      break
-    }
+
+  if (field.length > 0 || record.length > 0) {
+    record.push(field.trim())
+    if (record.some((cell) => cell !== '')) records.push(record)
   }
-  
-  if (headerIndex === -1) return rows
-  
+
+  return records
+}
+
+function csvCell(record: string[], index: number) {
+  if (index < 0) return ''
+  return record[index]?.trim() ?? ''
+}
+
+function missingId(value: string) {
+  const trimmed = value.trim()
+  return !trimmed || trimmed === '-' || trimmed === '0'
+}
+
+function preferStudId(primary: string, fallback: string) {
+  if (!missingId(primary) && /^BBG/i.test(primary)) return primary
+  if (!missingId(fallback) && /^BBG/i.test(fallback)) return fallback
+  if (!missingId(primary)) return primary
+  if (!missingId(fallback)) return fallback
+  return ''
+}
+
+function parseSchedule(value: string): 'A' | 'B' | 'SP' | null {
+  const schedule = value.trim().toUpperCase()
+  if (schedule === 'A' || schedule === 'B' || schedule === 'SP') return schedule
+  return null
+}
+
+export function parseStambookCsv(csvContent: string): StambookImportRow[] {
+  const records = parseCsvRecords(csvContent)
+  const headerIndex = records.findIndex(
+    (record) => record.some((field) => field.toUpperCase() === 'SEX') &&
+      (record.some((field) => field.toUpperCase() === 'NID') ||
+        record.some((field) => field.toUpperCase() === 'ANIMAL_NUMBER')),
+  )
+  if (headerIndex === -1) return []
+
   const header = records[headerIndex]
-  // Helper to find column index (exact match, ignoring quotes/spaces/case)
-  const findColumn = (name: string): number => {
-    return header.findIndex(col => {
-      const normalized = col.replace(/['"]/g, '').trim().toUpperCase()
-      return normalized === name.toUpperCase()
-    })
-  }
-  
-  // Try both NID and ANIMAL_NUMBER columns to see which has the BBG prefix
+  const findColumn = (name: string) =>
+    header.findIndex((column) => column.replace(/['"]/g, '').trim().toUpperCase() === name)
+
   const nidIdx = findColumn('NID')
   const animalNumberIdx = findColumn('ANIMAL_NUMBER')
   const sexIdx = findColumn('SEX')
-  const birthDateIdx = findColumn('BIRTH_DTM')
-  
-  // For parents, try both *_NID and *_ANIMAL_NUMBER columns
+  const birthIdx = findColumn('BIRTH_DTM')
+  const birthSortIdx = findColumn('BD_SORT')
   const damNidIdx = findColumn('DAM_NID')
-  const damAnimalNumberIdx = findColumn('DAM_ANIMAL_NUMBER')
+  const damNumberIdx = findColumn('DAM_ANIMAL_NUMBER')
   const sireNidIdx = findColumn('SIRE_NID')
-  const sireAnimalNumberIdx = findColumn('SIRE_ANIMAL_NUMBER')
-  
-  // Debug: log column indices and first few header values
-  console.log('Column indices found:', {
-    nidIdx,
-    animalNumberIdx,
-    sexIdx,
-    birthDateIdx,
-    damNidIdx,
-    damAnimalNumberIdx,
-    sireNidIdx,
-    sireAnimalNumberIdx,
-    headerSample: header.slice(0, 15).map((h, i) => `${i}:${h}`)
-  })
-  
-  // Need at least one animal ID column and sex
-  if ((nidIdx === -1 && animalNumberIdx === -1) || sexIdx === -1) return rows
-  
-  // Determine which columns to use by checking first data row
-  let animalIdIdx = -1
-  let damIdIdx = -1
-  let sireIdIdx = -1
-  
-  if (records.length > headerIndex + 1) {
-    const firstDataRow = records[headerIndex + 1]
-    
-    // Auto-detect animal ID column
-    const nidValue = nidIdx >= 0 ? firstDataRow[nidIdx] : ''
-    const animalNumberValue = animalNumberIdx >= 0 ? firstDataRow[animalNumberIdx] : ''
-    const nidHasPrefix = /^BBG[MF]?/i.test(nidValue)
-    const animalNumberHasPrefix = /^BBG[MF]?/i.test(animalNumberValue)
-    
-    if (nidHasPrefix && !animalNumberHasPrefix) {
-      animalIdIdx = nidIdx
-    } else if (!nidHasPrefix && animalNumberHasPrefix) {
-      animalIdIdx = animalNumberIdx
-    } else if (nidIdx >= 0) {
-      animalIdIdx = nidIdx
-    } else {
-      animalIdIdx = animalNumberIdx
-    }
-    
-    // Auto-detect dam (mother) column
-    const damNidValue = damNidIdx >= 0 ? firstDataRow[damNidIdx] : ''
-    const damAnimalNumberValue = damAnimalNumberIdx >= 0 ? firstDataRow[damAnimalNumberIdx] : ''
-    const damNidHasPrefix = /^BBG[MF]?/i.test(damNidValue)
-    const damAnimalNumberHasPrefix = /^BBG[MF]?/i.test(damAnimalNumberValue)
-    
-    if (damNidHasPrefix && !damAnimalNumberHasPrefix) {
-      damIdIdx = damNidIdx
-    } else if (!damNidHasPrefix && damAnimalNumberHasPrefix) {
-      damIdIdx = damAnimalNumberIdx
-    } else if (damNidIdx >= 0) {
-      damIdIdx = damNidIdx
-    } else {
-      damIdIdx = damAnimalNumberIdx
-    }
-    
-    // Auto-detect sire (father) column
-    const sireNidValue = sireNidIdx >= 0 ? firstDataRow[sireNidIdx] : ''
-    const sireAnimalNumberValue = sireAnimalNumberIdx >= 0 ? firstDataRow[sireAnimalNumberIdx] : ''
-    const sireNidHasPrefix = /^BBG[MF]?/i.test(sireNidValue)
-    const sireAnimalNumberHasPrefix = /^BBG[MF]?/i.test(sireAnimalNumberValue)
-    
-    if (sireNidHasPrefix && !sireAnimalNumberHasPrefix) {
-      sireIdIdx = sireNidIdx
-    } else if (!sireNidHasPrefix && sireAnimalNumberHasPrefix) {
-      sireIdIdx = sireAnimalNumberIdx
-    } else if (sireNidIdx >= 0) {
-      sireIdIdx = sireNidIdx
-    } else {
-      sireIdIdx = sireAnimalNumberIdx
-    }
-    
-    console.log('Column detection results:', {
-      animalId: { idx: animalIdIdx, value: firstDataRow[animalIdIdx]?.substring(0, 20) },
-      dam: { idx: damIdIdx, value: firstDataRow[damIdIdx]?.substring(0, 20) },
-      sire: { idx: sireIdIdx, value: firstDataRow[sireIdIdx]?.substring(0, 20) }
-    })
-  }
-  
-  // Parse data rows
-  for (let i = headerIndex + 1; i < records.length; i++) {
-    const record = records[i]
-    if (record.length <= Math.max(animalIdIdx, sexIdx, birthDateIdx || 0, damIdIdx || 0, sireIdIdx || 0)) continue
-    
-    const animalNumber = record[animalIdIdx]?.trim()
-    if (!animalNumber || animalNumber === '0') continue
-    
-    // Debug: log first record's fields
-    if (rows.length === 0) {
-      console.log('First record sample (indices 6-13):', {
-        6: record[6],
-        7: record[7],
-        8: record[8],
-        9: record[9],
-        10: record[10],
-        11: record[11],
-        12: record[12],
-        13: record[13],
-      })
-      console.log('Extracted values:', {
-        animal: animalNumber,
-        dam: damIdIdx >= 0 ? record[damIdIdx] : 'N/A',
-        sire: sireIdIdx >= 0 ? record[sireIdIdx] : 'N/A'
-      })
-    }
-    
+  const sireNumberIdx = findColumn('SIRE_ANIMAL_NUMBER')
+  const studbookIdx = findColumn('ANI_ID')
+  const scheduleIdx = findColumn('SEC')
+  const breedIdx = findColumn('BREED_CODE')
+
+  if (sexIdx === -1 || (nidIdx === -1 && animalNumberIdx === -1)) return []
+
+  const rows: StambookImportRow[] = []
+  for (const record of records.slice(headerIndex + 1)) {
+    const animalNumber = preferStudId(csvCell(record, nidIdx), csvCell(record, animalNumberIdx))
+    if (!animalNumber) continue
+
+    const birthDate = csvCell(record, birthIdx) || csvCell(record, birthSortIdx)
+    const dam = preferStudId(csvCell(record, damNidIdx), csvCell(record, damNumberIdx))
+    const sire = preferStudId(csvCell(record, sireNidIdx), csvCell(record, sireNumberIdx))
+    const studbookNumber = csvCell(record, studbookIdx).replace(/\s+/g, '')
+
     rows.push({
       animalNumber,
-      sex: record[sexIdx]?.trim() || '',
-      birthDate: birthDateIdx >= 0 ? record[birthDateIdx]?.trim() || '' : '',
-      damAnimalNumber: damIdIdx >= 0 && record[damIdIdx]?.trim() ? record[damIdIdx].trim() : null,
-      sireAnimalNumber: sireIdIdx >= 0 && record[sireIdIdx]?.trim() ? record[sireIdIdx].trim() : null,
+      sex: csvCell(record, sexIdx),
+      birthDate,
+      damAnimalNumber: dam || null,
+      sireAnimalNumber: sire || null,
+      studbookNumber: studbookNumber && studbookNumber !== '0' ? studbookNumber : null,
+      studbookSchedule: parseSchedule(csvCell(record, scheduleIdx)),
+      breed: csvCell(record, breedIdx) || null,
     })
   }
-  
+
   return rows
 }
 
@@ -428,6 +296,9 @@ function prepareAnimal(row: StambookImportRow): ParsedAnimal | null {
     sireStudNumber: sireParsed?.studNumber || null,
     sireYear: sireParsed?.year || null,
     sireAnimalNumber: sireParsed?.animalNumber || null,
+    studbookNumber: row.studbookNumber,
+    studbookSchedule: row.studbookSchedule,
+    breed: row.breed,
   }
 }
 
@@ -448,7 +319,7 @@ export async function importStambookAnimals(
   // Get existing animals so empty pedigree and birth dates can be filled in.
   const { data: existingAnimals, error: fetchError } = await supabase
     .from('animals')
-    .select('id, stud_number, id_year, id_number, sex, birth_date, dam_id, sire_id, dam_tag_number, sire_name')
+    .select('id, stud_number, id_year, id_number, sex, birth_date, dam_id, sire_id, dam_tag_number, sire_name, studbook_number, studbook_schedule, breed')
     .eq('company_id', companyId)
   
   if (fetchError) {
@@ -516,6 +387,9 @@ export async function importStambookAnimals(
       species: 'goat',
       sex: animal.sex,
       birth_date: animal.birthDate,
+      breed: animal.breed,
+      studbook_number: animal.studbookNumber,
+      studbook_schedule: animal.studbookSchedule,
       status: 'stamboek' as const,
     }))
     
@@ -670,6 +544,15 @@ export async function importStambookAnimals(
     }
     if (existing && existing.sex == null && original.sex !== 'unknown') {
       updates.sex = original.sex
+    }
+    if (existing && isBlank(existing.studbook_number) && original.studbookNumber) {
+      updates.studbook_number = original.studbookNumber
+    }
+    if (existing && isBlank(existing.studbook_schedule) && original.studbookSchedule) {
+      updates.studbook_schedule = original.studbookSchedule
+    }
+    if (existing && isBlank(existing.breed) && original.breed) {
+      updates.breed = original.breed
     }
     
     // Link dam when that pedigree field is still empty.

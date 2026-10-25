@@ -98,7 +98,7 @@ export function ImportStambookPage() {
       if (importResult.errors.length > 0) {
         setError('Some animals could not be imported. See details below.')
       } else if (created === 0 && updated === 0) {
-        setSuccess('No empty birth dates or pedigree links to fill in. Saved details were left as they are.')
+        setSuccess('No empty details to fill in. Saved birth dates, pedigree, studbook numbers, and schedules were left as they are.')
       } else {
         const parts: string[] = []
         if (created > 0) parts.push(`created ${created}`)
@@ -123,29 +123,28 @@ export function ImportStambookPage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Import Stambook CSV"
-        description="Upload a CSV file from stambook. New animals are created with status Stamboek. Animals already on the farm keep their saved details, and empty birth dates and pedigree links are filled in."
+        description="Upload a kraalkaart CSV from stambook. New animals are created with status Stamboek. Animals already on the farm keep their saved details, and empty birth dates, pedigree, studbook number, and schedule are filled in."
       />
 
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">What gets imported</h3>
         <ul className="mt-2 space-y-1 text-sm text-soil-600">
-          <li>• Animal ID from NID column (BBGF/BBGM/BBG prefix removed)</li>
-          <li>• Format: stud-year-animal (e.g., 1637-26-0016)</li>
-          <li>• Sex from SEX column (M=Male, F=Female)</li>
-          <li>• Birth date</li>
-          <li>• Dam (mother) and Sire (father) links</li>
+          <li>• Animal ID from the NID column (for example BBG 1637260016 becomes 1637-26-0016)</li>
+          <li>• Sex, birth date, studbook number, and schedule (A, B, or SP)</li>
+          <li>• Mother and father from DAM_NID and SIRE_NID</li>
         </ul>
         <p className="mt-3 text-sm text-soil-600">
           New animals receive status <span className="font-semibold text-pasture-800">Stamboek</span> and species <span className="font-semibold text-pasture-800">Goat</span>.
-          If an animal is already on the farm, only empty birth dates, sex, and pedigree fields are filled in. A saved birth date, sex, mother, or father is left as it is.
+          If an animal is already on the farm, only empty birth dates, sex, pedigree, studbook number, and schedule are filled in. A saved value is left as it is.
           Parents that are not on the farm yet are added as their own Stamboek animals, with birth date left blank, and then linked.
+          Section BS is left blank, because the saved schedules are A, B, and SP.
         </p>
       </Card>
 
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">Upload CSV file</h3>
         <p className="mt-2 text-sm text-soil-600">
-          Select your stambook CSV file. The file should contain columns: ANIMAL_NUMBER, SEX, BIRTH_DTM, DAM_ANIMAL_NUMBER, and SIRE_ANIMAL_NUMBER.
+          Select the kraalkaart CSV. It uses NID, SEX, BIRTH_DTM, DAM_NID, and SIRE_NID. The farm address can span more than one line.
         </p>
         <input
           ref={fileInputRef}
@@ -186,7 +185,7 @@ export function ImportStambookPage() {
         <Card>
           <h3 className="font-display font-semibold text-pasture-900">Preview</h3>
           <p className="mt-2 text-sm text-soil-600">
-            Found {rows.length} animal{rows.length === 1 ? '' : 's'} in the CSV file. Animals already on the farm are updated only where birth date or pedigree is empty.
+            Found {rows.length} animal{rows.length === 1 ? '' : 's'} in the CSV file. Animals already on the farm are updated only where a detail is still empty.
           </p>
           
           <div className="mt-4 overflow-x-auto">
