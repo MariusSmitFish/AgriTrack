@@ -13,6 +13,65 @@ export function birthYearPart(birthDate: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(birthDate) ? birthDate.slice(2, 4) : ''
 }
 
+type BirthExportAnimal = {
+  stud_number: string | null
+  id_year: string | null
+  id_number: string | null
+  birth_date: string | null
+  dam_id: string | null
+  sire_id: string | null
+  dam_tag_number: string | null
+  sire_name: string | null
+}
+
+function parentId(
+  parent: Parameters<typeof formatAnimalId>[0] | undefined,
+  fallback: string | null,
+) {
+  return formatAnimalId(parent) || fallback?.trim() || ''
+}
+
+/** Animals born in the range, as Animal ID, Mother ID, Father ID, and DoB. */
+export async function birthExportRows(companyId: string, from: string, to: string) {
+  const { data, error } = await supabase
+    .from('animals')
+    .select('stud_number, id_year, id_number, birth_date, dam_id, sire_id, dam_tag_number, sire_name')
+    .eq('company_id', companyId)
+    .gte('birth_date', from)
+    .lte('birth_date', to)
+    .order('birth_date', { ascending: true })
+
+  if (error) throw error
+
+  const births = (data ?? []) as BirthExportAnimal[]
+  const parentIds = [
+    ...new Set(births.flatMap((animal) => [animal.dam_id, animal.sire_id].filter((id): id is string => Boolean(id)))),
+  ]
+
+  const parents = new Map<string, Parameters<typeof formatAnimalId>[0]>()
+  if (parentIds.length > 0) {
+    const { data: parentRows, error: parentError } = await supabase
+      .from('animals')
+      .select('id, stud_number, id_year, id_number')
+      .eq('company_id', companyId)
+      .in('id', parentIds)
+
+    if (parentError) throw parentError
+    for (const parent of parentRows ?? []) {
+      parents.set(parent.id, parent)
+    }
+  }
+
+  return births
+    .map((animal) => [
+      formatAnimalId(animal) ?? '',
+      parentId(animal.dam_id ? parents.get(animal.dam_id) : null, animal.dam_tag_number),
+      parentId(animal.sire_id ? parents.get(animal.sire_id) : null, animal.sire_name),
+      animal.birth_date ?? '',
+    ])
+    .sort((a, b) => a[3].localeCompare(b[3]) || a[0].localeCompare(b[0]))
+}
+
 export function usedIdNumbers(animals: Animal[], stud: string, year: string) {
   const used = new Set<number>()
   if (!stud || !year) return used
