@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
 import type { PedigreeNode } from '../../lib/animals'
 
 interface PedigreeNodeCardProps {
@@ -52,20 +53,30 @@ export function PedigreeNodeCard({ node, featured = false, onSelect, style }: Pe
   )
 
   const className = `pedigree-node rounded-2xl border-2 text-left shadow-sm shadow-pasture-900/5 transition ${sexAccent} ${size} ${
-    clickable ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : ''
+    clickable ? 'hover:-translate-y-0.5 hover:shadow-md' : ''
   } ${featured ? 'ring-2 ring-pasture-600/20' : ''}`
-
-  if (clickable && animal) {
-    return (
-      <button type="button" className={className} style={style} onClick={() => onSelect?.(animal.id)}>
-        {content}
-      </button>
-    )
-  }
 
   return (
     <div className={className} style={style}>
-      {content}
+      {clickable && animal ? (
+        <button
+          type="button"
+          className="block w-full cursor-pointer bg-transparent p-0 text-left"
+          onClick={() => onSelect?.(animal.id)}
+        >
+          {content}
+        </button>
+      ) : (
+        content
+      )}
+      {animal && (
+        <Link
+          to={`/app/animals/${animal.id}`}
+          className="mt-2 inline-flex text-xs font-semibold text-pasture-800 hover:text-pasture-700"
+        >
+          Open
+        </Link>
+      )}
     </div>
   )
 }

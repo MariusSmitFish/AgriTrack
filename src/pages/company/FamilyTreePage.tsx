@@ -82,13 +82,20 @@ export function FamilyTreePage() {
 
       {tree && (
         <Card className="border-pasture-200 bg-gradient-to-b from-pasture-50 via-panel to-panel-muted p-0">
-          <div className="border-b border-field-dark px-4 py-4 sm:px-6">
-            <h3 className="font-display font-semibold text-pasture-900">
-              {animalLabel(tree.focus)}
-            </h3>
-            <p className="mt-1 text-sm text-soil-500">
-              Select any animal in the tree to open their family.
-            </p>
+          <div className="flex flex-col gap-3 border-b border-field-dark px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+            <div>
+              <h3 className="font-display font-semibold text-pasture-900">
+                {animalLabel(tree.focus)}
+              </h3>
+              <p className="mt-1 text-sm text-soil-500">
+                Select an animal to show their family. Open goes to that animal’s details.
+              </p>
+            </div>
+            <Link to={`/app/animals/${tree.focus.id}`} className="shrink-0">
+              <Button variant="secondary" className="w-full sm:w-auto">
+                Open animal
+              </Button>
+            </Link>
           </div>
           <div className="px-2 py-2 sm:px-4">
             <PedigreeTreeView tree={tree} onSelectAnimal={selectAnimal} />
