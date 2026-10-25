@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { animalLabel, formatAnimalSex, type PedigreeTree } from '../../lib/animals'
+import type { Animal } from '../../lib/types'
 import { offspringNoun } from '../../lib/speciesTerms'
 import { PedigreeNodeCard } from './PedigreeNodeCard'
 
@@ -14,6 +15,20 @@ function GenerationLabel({ children }: { children: ReactNode }) {
       {children}
     </p>
   )
+}
+
+function offspringSexSummary(offspring: Animal[]) {
+  let females = 0
+  let males = 0
+  let unknown = 0
+  for (const child of offspring) {
+    if (child.sex === 'female') females += 1
+    else if (child.sex === 'male') males += 1
+    else unknown += 1
+  }
+  const parts = [`${females}F`, `${males}M`]
+  if (unknown > 0) parts.push(`${unknown} unknown`)
+  return parts.join(', ')
 }
 
 export function PedigreeTreeView({ tree, onSelectAnimal }: PedigreeTreeViewProps) {
@@ -71,7 +86,9 @@ export function PedigreeTreeView({ tree, onSelectAnimal }: PedigreeTreeViewProps
             <div className="absolute left-1/2 top-0 h-4 w-px -translate-x-px bg-pasture-300" />
             <div className="absolute left-[10%] right-[10%] top-4 h-px bg-pasture-200" />
           </div>
-          <GenerationLabel>Offspring ({tree.offspring.length})</GenerationLabel>
+          <GenerationLabel>
+            {`Offspring (${tree.offspring.length === 0 ? '0' : offspringSexSummary(tree.offspring)})`}
+          </GenerationLabel>
           {tree.offspring.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-field-dark bg-white/50 px-4 py-6 text-center text-sm text-soil-500">
               No {offspringNoun(tree.focus.species, true)} linked yet. Set this animal as dam or

@@ -6,6 +6,7 @@ import type { Animal } from '../../lib/types'
 import {
   animalLabel,
   animalsWithExactTag,
+  compareAnimalsForList,
   deleteAnimal,
   exactTagQuery,
   formatAnimalId,
@@ -107,9 +108,9 @@ export function AnimalsPage() {
   }, [baseAnimals, exactTag])
 
   const filteredAnimals = useMemo(
-    () =>
-      exactTag
-        ? tagMatches
+    () => {
+      const matched = exactTag
+        ? animalsWithExactTag(baseAnimals, exactTag)
         : filterBySearch(baseAnimals, deferredQuery, (animal) => [
         formatAnimalId(animal),
         formatTagNumber(animal),
@@ -130,8 +131,10 @@ export function AnimalsPage() {
         parentLabel(animal.dam_id),
         parentLabel(animal.sire_id),
         animal.notes,
-      ]),
-    [baseAnimals, deferredQuery, exactTag, tagMatches],
+      ])
+      return [...matched].sort(compareAnimalsForList)
+    },
+    [baseAnimals, deferredQuery, exactTag],
   )
 
   const {

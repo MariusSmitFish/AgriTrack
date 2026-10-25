@@ -229,6 +229,28 @@ export function formatAnimalStatus(status: string | null) {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
+function hasRecordedParent(id: string | null, label: string | null) {
+  return Boolean(id) || Boolean(label?.trim())
+}
+
+/** Active animals first, then animals with both parents, then one parent, then none. */
+export function compareAnimalsForList(a: Animal, b: Animal) {
+  const activeRank = (animal: Animal) => (!animal.status || animal.status === 'active' ? 0 : 1)
+  const parentRank = (animal: Animal) => {
+    const parents = [
+      hasRecordedParent(animal.dam_id, animal.dam_tag_number),
+      hasRecordedParent(animal.sire_id, animal.sire_name),
+    ].filter(Boolean).length
+    return 2 - parents
+  }
+
+  const byActive = activeRank(a) - activeRank(b)
+  if (byActive !== 0) return byActive
+  const byParents = parentRank(a) - parentRank(b)
+  if (byParents !== 0) return byParents
+  return b.created_at.localeCompare(a.created_at)
+}
+
 export function getAnimalById(animals: Animal[], id: string | null | undefined) {
   if (!id) return null
   return animals.find((a) => a.id === id) ?? null

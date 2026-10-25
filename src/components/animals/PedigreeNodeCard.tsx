@@ -26,6 +26,9 @@ export function PedigreeNodeCard({ node, featured = false, onSelect, style }: Pe
     ? 'min-w-[10.5rem] px-4 py-3.5 sm:min-w-[12rem]'
     : 'min-w-[8.5rem] px-3 py-2.5 sm:min-w-[9.5rem]'
 
+  const name = animal?.name?.trim()
+  const showName = Boolean(name && name !== node.label)
+
   const content = (
     <>
       <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-soil-500">
@@ -38,6 +41,7 @@ export function PedigreeNodeCard({ node, featured = false, onSelect, style }: Pe
       >
         {node.label}
       </p>
+      {showName && <p className="mt-0.5 break-words text-xs font-semibold text-soil-700">{name}</p>}
       {node.detail && <p className="mt-0.5 text-xs text-soil-500">{node.detail}</p>}
       {animal?.status && animal.status !== 'active' && (
         <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-barn-600">
