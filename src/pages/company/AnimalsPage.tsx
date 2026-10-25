@@ -401,7 +401,6 @@ export function AnimalsPage() {
                         { label: 'Tag number', value: formatTagNumber(animal) ?? '—' },
                         { label: 'Sex', value: formatAnimalSex(animal.sex) },
                         { label: 'Lives at', value: placeFor(animal) },
-                        { label: 'Dam', value: parentLabel(animal.dam_id) },
                         { label: 'Status', value: formatAnimalStatus(animal.status) },
                       ]}
                       action={
@@ -411,6 +410,12 @@ export function AnimalsPage() {
                             className="text-sm font-semibold text-pasture-800 hover:text-pasture-700"
                           >
                             Open
+                          </Link>
+                          <Link
+                            to={`/app/family-trees?animal=${animal.id}`}
+                            className="text-sm font-semibold text-pasture-800 hover:text-pasture-700"
+                          >
+                            Family tree
                           </Link>
                           <button
                             type="button"
@@ -434,7 +439,6 @@ export function AnimalsPage() {
                       <th className="pb-2 font-medium">Name</th>
                       <th className="pb-2 font-medium">Sex</th>
                       <th className="pb-2 font-medium">Lives at</th>
-                      <th className="pb-2 font-medium">Dam</th>
                       <th className="pb-2 font-medium">Status</th>
                       <th className="pb-2 font-medium"></th>
                     </tr>
@@ -447,14 +451,19 @@ export function AnimalsPage() {
                         <td className="py-3 text-soil-600">{animal.name ?? '—'}</td>
                         <td className="py-3 text-soil-600">{formatAnimalSex(animal.sex)}</td>
                         <td className="py-3 text-soil-600">{placeFor(animal)}</td>
-                        <td className="py-3 text-soil-600">{parentLabel(animal.dam_id)}</td>
                         <td className="py-3 text-soil-600">{formatAnimalStatus(animal.status)}</td>
-                        <td className="py-3 text-right">
+                        <td className="py-3 text-right whitespace-nowrap">
                           <Link
                             to={`/app/animals/${animal.id}`}
                             className="mr-3 font-semibold text-pasture-800 hover:text-pasture-700"
                           >
                             Open
+                          </Link>
+                          <Link
+                            to={`/app/family-trees?animal=${animal.id}`}
+                            className="mr-3 font-semibold text-pasture-800 hover:text-pasture-700"
+                          >
+                            Family tree
                           </Link>
                           <button
                             type="button"
