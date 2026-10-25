@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Animal } from '../../lib/types'
 import { animalLabel, buildPedigreeTree } from '../../lib/animals'
+import { fetchOtherFarmRelatives, type OtherFarmRelative } from '../../lib/otherFarmFamily'
 import { ParentPicker } from '../../components/animals/ParentPicker'
 import { PedigreeTreeView } from '../../components/animals/PedigreeTreeView'
 import { Button } from '../../components/ui/Button'
@@ -17,6 +18,7 @@ export function FamilyTreePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState(searchParams.get('animal') ?? '')
+  const [otherFarm, setOtherFarm] = useState<OtherFarmRelative[]>([])
 
   useEffect(() => {
     if (!profile?.company_id) return
@@ -39,6 +41,24 @@ export function FamilyTreePage() {
     if (fromUrl) setSelectedId(fromUrl)
   }, [searchParams])
 
+  useEffect(() => {
+    if (!selectedId) {
+      setOtherFarm([])
+      return
+    }
+    let cancelled = false
+    fetchOtherFarmRelatives(selectedId)
+      .then((relatives) => {
+        if (!cancelled) setOtherFarm(relatives)
+      })
+      .catch(() => {
+        if (!cancelled) setOtherFarm([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId])
+
   const tree = useMemo(
     () => (selectedId ? buildPedigreeTree(animals, selectedId) : null),
     [animals, selectedId],
@@ -53,7 +73,7 @@ export function FamilyTreePage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Family tree"
-        description="Search for an animal to see parents, grandparents, and offspring."
+        description="Search for an animal to see parents, grandparents, and offspring. Relatives recorded by another farm appear view only."
       />
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -88,7 +108,7 @@ export function FamilyTreePage() {
                 {animalLabel(tree.focus)}
               </h3>
               <p className="mt-1 text-sm text-soil-500">
-                Select an animal to show their family. Open goes to that animal’s details.
+                Select an animal on your farm to show their family. Cards from another farm are view only.
               </p>
             </div>
             <Link to={`/app/animals/${tree.focus.id}`} className="shrink-0">
@@ -98,7 +118,7 @@ export function FamilyTreePage() {
             </Link>
           </div>
           <div className="px-2 py-2 sm:px-4">
-            <PedigreeTreeView tree={tree} onSelectAnimal={selectAnimal} />
+            <PedigreeTreeView tree={tree} onSelectAnimal={selectAnimal} otherFarm={otherFarm} />
           </div>
         </Card>
       )}

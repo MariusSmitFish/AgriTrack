@@ -11,15 +11,15 @@ interface PedigreeNodeCardProps {
 
 export function PedigreeNodeCard({ node, featured = false, onSelect, style }: PedigreeNodeCardProps) {
   const animal = node.animal
-  const sex = animal?.sex
-  const clickable = Boolean(animal && onSelect)
+  const sex = animal?.sex ?? node.sex
+  const clickable = Boolean(animal && onSelect && !node.viewOnly)
 
   const sexAccent =
     sex === 'female'
       ? 'border-pasture-600 bg-gradient-to-br from-pasture-50 to-white'
       : sex === 'male'
         ? 'border-barn-500 bg-gradient-to-br from-barn-100 to-white'
-        : node.kind === 'external'
+        : node.viewOnly || node.kind === 'external'
           ? 'border-dashed border-soil-500/40 bg-field/80'
           : 'border-field-dark bg-white/80'
 
@@ -69,7 +69,7 @@ export function PedigreeNodeCard({ node, featured = false, onSelect, style }: Pe
       ) : (
         content
       )}
-      {animal && (
+      {animal && !node.viewOnly && (
         <Link
           to={`/app/animals/${animal.id}`}
           className="mt-2 inline-flex text-xs font-semibold text-pasture-800 hover:text-pasture-700"

@@ -320,6 +320,8 @@ export interface PedigreeNode {
   label: string
   detail?: string
   role: string
+  viewOnly?: boolean
+  sex?: Animal['sex']
 }
 
 export interface PedigreeTree {
