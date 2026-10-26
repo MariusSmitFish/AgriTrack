@@ -93,6 +93,9 @@ export function AnimalDetailPage() {
   const [savingSale, setSavingSale] = useState(false)
   const [salePrice, setSalePrice] = useState('')
   const [soldOn, setSoldOn] = useState('')
+  const [buyerName, setBuyerName] = useState('')
+  const [buyerSurname, setBuyerSurname] = useState('')
+  const [saleNotes, setSaleNotes] = useState('')
   const [saleError, setSaleError] = useState('')
   const [saleSuccess, setSaleSuccess] = useState('')
   const [identity, setIdentity] = useState({ stud: '', year: '', number: '' })
@@ -149,6 +152,9 @@ export function AnimalDetailPage() {
       setSireName(animalRes.data.sire_name ?? '')
       setSalePrice(animalRes.data.sale_price == null ? '' : String(animalRes.data.sale_price))
       setSoldOn(animalRes.data.sold_on ?? todayDateValue())
+      setBuyerName(animalRes.data.buyer_name ?? '')
+      setBuyerSurname(animalRes.data.buyer_surname ?? '')
+      setSaleNotes(animalRes.data.sale_notes ?? '')
       const place = resolveAnimalPlace(
         animalRes.data,
         locationsRes.error ? [] : (locationsRes.data ?? []),
@@ -394,11 +400,15 @@ export function AnimalDetailPage() {
     setSaleError('')
     setSaleSuccess('')
 
+    const optional = (value: string) => value.trim() || null
     const { error: updateError } = await supabase
       .from('animals')
       .update({
         sale_price: price,
         sold_on: soldOn,
+        buyer_name: optional(buyerName),
+        buyer_surname: optional(buyerSurname),
+        sale_notes: optional(saleNotes),
         status: 'sold',
       })
       .eq('id', animal.id)
@@ -416,7 +426,7 @@ export function AnimalDetailPage() {
 
   const handleClearSale = async () => {
     if (!animal?.sale_price) return
-    if (!window.confirm('Remove the sale price and date for this animal?')) return
+    if (!window.confirm('Remove the sale price, date, buyer, and notes for this animal?')) return
 
     setSavingSale(true)
     setSaleError('')
@@ -427,6 +437,9 @@ export function AnimalDetailPage() {
       .update({
         sale_price: null,
         sold_on: null,
+        buyer_name: null,
+        buyer_surname: null,
+        sale_notes: null,
         status: animal.status === 'sold' ? 'active' : animal.status,
       })
       .eq('id', animal.id)
@@ -822,8 +835,12 @@ export function AnimalDetailPage() {
         title="Sale"
         description={
           formatSalePrice(animal.sale_price)
-            ? `Sold for ${formatSalePrice(animal.sale_price)}${animal.sold_on ? ` on ${animal.sold_on}` : ''}.`
-            : 'Record the price when this animal is sold.'
+            ? `Sold for ${formatSalePrice(animal.sale_price)}${animal.sold_on ? ` on ${animal.sold_on}` : ''}${
+                [animal.buyer_name, animal.buyer_surname].filter(Boolean).join(' ')
+                  ? ` to ${[animal.buyer_name, animal.buyer_surname].filter(Boolean).join(' ')}`
+                  : ''
+              }.`
+            : 'Record the price, buyer, and notes when this animal is sold.'
         }
         className="print:hidden"
       >
@@ -845,6 +862,33 @@ export function AnimalDetailPage() {
             onChange={(e) => setSoldOn(e.target.value)}
             required
           />
+          <Input
+            label="Buyer name"
+            id="detail-buyer-name"
+            value={buyerName}
+            onChange={(e) => setBuyerName(e.target.value)}
+            placeholder="Optional"
+          />
+          <Input
+            label="Buyer surname"
+            id="detail-buyer-surname"
+            value={buyerSurname}
+            onChange={(e) => setBuyerSurname(e.target.value)}
+            placeholder="Optional"
+          />
+          <div className="md:col-span-2">
+            <label htmlFor="detail-sale-notes" className="block text-sm font-semibold text-soil-700">
+              Sale notes
+            </label>
+            <textarea
+              id="detail-sale-notes"
+              value={saleNotes}
+              onChange={(e) => setSaleNotes(e.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-xl border border-field-dark bg-white px-3 py-2.5 text-base outline-none focus:border-pasture-600 focus:ring-2 focus:ring-pasture-100 sm:text-sm"
+              placeholder="Optional"
+            />
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row md:col-span-2">
             <Button type="submit" disabled={savingSale} className="w-full sm:w-auto">
               {savingSale ? 'Saving...' : 'Save sale'}

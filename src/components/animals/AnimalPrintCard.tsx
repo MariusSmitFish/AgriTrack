@@ -98,6 +98,11 @@ export function AnimalPrintCard({ animal, herdAnimals, placeDisplay }: AnimalPri
               { label: 'Birth date', value: animal.birth_date ?? '—' },
               { label: 'Sale price', value: formatSalePrice(animal.sale_price) ?? '—' },
               { label: 'Sold on', value: animal.sold_on ?? '—' },
+              {
+                label: 'Buyer',
+                value: [animal.buyer_name, animal.buyer_surname].filter(Boolean).join(' ') || '—',
+              },
+              { label: 'Sale notes', value: animal.sale_notes ?? '—' },
               { label: 'Lives at', value: placeDisplay },
               { label: 'Dam', value: damLabel },
               { label: 'Sire', value: sireLabel },

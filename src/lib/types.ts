@@ -80,6 +80,9 @@ export interface Animal {
   status: AnimalStatus | null
   sale_price: number | string | null
   sold_on: string | null
+  buyer_name: string | null
+  buyer_surname: string | null
+  sale_notes: string | null
   encampment_id: string | null
   location: string | null
   notes: string | null
