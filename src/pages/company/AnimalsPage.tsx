@@ -2,6 +2,8 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode 
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import type { Animal, AnimalStatus } from '../../lib/types'
 import {
   animalLabel,
@@ -175,6 +177,7 @@ function FilterSelect({
 
 export function AnimalsPage() {
   const { profile } = useAuth()
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const [animals, setAnimals] = useState<Animal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -202,25 +205,40 @@ export function AnimalsPage() {
     }
   }
 
-  const loadAnimals = async () => {
-    if (!profile?.company_id) return
-
-    setLoading(true)
-    const { data, error: fetchError } = await supabase
-      .from('animals')
-      .select('*, encampments(id, name, location_id, locations(id, name))')
-      .eq('company_id', profile.company_id)
-      .order('created_at', { ascending: false })
-
-    if (fetchError) setError(fetchError.message)
-    else setAnimals(data ?? [])
-
-    setLoading(false)
-  }
-
   useEffect(() => {
-    loadAnimals()
-  }, [profile?.company_id])
+    if (!profile?.company_id || !ready) return
+    const companyId = profile.company_id
+    let cancelled = false
+
+    const loadAnimals = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await read(
+          (saved) => saved.animals,
+          async () => {
+            const { data: rows, error: fetchError } = await supabase
+              .from('animals')
+              .select('*, encampments(id, name, location_id, locations(id, name))')
+              .eq('company_id', companyId)
+              .order('created_at', { ascending: false })
+            if (fetchError) throw new Error(fetchError.message)
+            return rows ?? []
+          },
+        )
+        if (!cancelled) setAnimals(data)
+      } catch (err) {
+        if (!cancelled) setError(errorText(err, 'Failed to load animals'))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadAnimals()
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.company_id, ready, cacheKey, read])
 
   const parentLabel = (id: string | null) => {
     if (!id) return '—'
@@ -381,6 +399,10 @@ export function AnimalsPage() {
   }
 
   const handleDelete = async (animal: Animal) => {
+    if (readOnly) {
+      setError('You are offline. The herd is view only until the connection returns.')
+      return
+    }
     const label = animalLabel(animal)
     if (
       !window.confirm(

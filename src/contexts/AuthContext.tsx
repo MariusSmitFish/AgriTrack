@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import {
+  deleteCachedProfile,
+  deleteFarmSnapshot,
+  isOfflineError,
+  loadCachedProfile,
+  saveCachedProfile,
+} from '../lib/offlineHerd'
 import type { Profile } from '../lib/types'
 
 interface AuthContextValue {
@@ -44,13 +51,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', userId)
       .single()
 
-    if (error) {
-      console.error('Failed to load profile:', error.message)
+    if (error || !data) {
+      const cached = await loadCachedProfile(userId)
+      if (cached && isOfflineError(error)) {
+        setProfile(cached)
+        return
+      }
+      console.error('Failed to load profile:', error?.message ?? 'Profile not found')
       setProfile(null)
       return
     }
 
     setProfile(data)
+    void saveCachedProfile(data)
   }
 
   const refreshProfile = async () => {
@@ -94,8 +107,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
+    const userId = session?.user.id
+    const companyId = profile?.company_id
+    const { error } = await supabase.auth.signOut(
+      typeof navigator !== 'undefined' && navigator.onLine === false ? { scope: 'local' } : undefined,
+    )
     if (error) throw error
+    await Promise.all([
+      userId ? deleteCachedProfile(userId) : Promise.resolve(),
+      companyId ? deleteFarmSnapshot(companyId) : Promise.resolve(),
+    ])
   }
 
   const requestPasswordReset = async (email: string) => {

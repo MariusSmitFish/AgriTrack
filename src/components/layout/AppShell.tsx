@@ -13,6 +13,7 @@ export interface NavItem {
 interface AppShellProps {
   title: string
   navItems: NavItem[]
+  banner?: ReactNode
 }
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -34,7 +35,7 @@ function MenuIcon({ open }: { open: boolean }) {
   )
 }
 
-export function AppShell({ title, navItems }: AppShellProps) {
+export function AppShell({ title, navItems, banner }: AppShellProps) {
   const { profile, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -152,6 +153,7 @@ export function AppShell({ title, navItems }: AppShellProps) {
           </aside>
 
           <main className="min-w-0 flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-6">
+            {banner ? <div className="mb-4 sm:mb-6">{banner}</div> : null}
             <Outlet />
           </main>
         </div>

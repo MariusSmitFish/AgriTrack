@@ -15,6 +15,8 @@ import {
 import { fetchHealthOptions } from '../../lib/healthOptions'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
@@ -39,6 +41,7 @@ export function AnimalInoculationsPanel({
   companyId,
   userId,
 }: AnimalInoculationsPanelProps) {
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const [records, setRecords] = useState<AnimalInoculation[]>([])
   const [optionNames, setOptionNames] = useState({
     vaccination: [] as string[],
@@ -49,29 +52,40 @@ export function AnimalInoculationsPanel({
   const [error, setError] = useState('')
 
   const loadRecords = async (showLoading = false) => {
+    if (!ready) return
     if (showLoading) setLoading(true)
     setError('')
     try {
-      const [nextRecords, options] = await Promise.all([
-        fetchAnimalInoculations(animalId),
-        fetchHealthOptions(companyId),
-      ])
-      setRecords(nextRecords)
+      const data = await read(
+        (saved) => ({
+          records: saved.inoculations.filter((row) => row.animal_id === animalId),
+          options: saved.healthOptions,
+        }),
+        async () => {
+          const [nextRecords, options] = await Promise.all([
+            fetchAnimalInoculations(animalId),
+            fetchHealthOptions(companyId),
+          ])
+          return { records: nextRecords, options }
+        },
+      )
+      setRecords(data.records)
       setOptionNames({
-        vaccination: options.filter((option) => option.kind === 'vaccination').map((option) => option.name),
-        condition: options.filter((option) => option.kind === 'condition').map((option) => option.name),
-        medication: options.filter((option) => option.kind === 'medication').map((option) => option.name),
+        vaccination: data.options.filter((option) => option.kind === 'vaccination').map((option) => option.name),
+        condition: data.options.filter((option) => option.kind === 'condition').map((option) => option.name),
+        medication: data.options.filter((option) => option.kind === 'medication').map((option) => option.name),
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load health records')
+      setError(errorText(err, 'Failed to load health records'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadRecords(true)
-  }, [animalId, companyId])
+    if (!ready) return
+    void loadRecords(true)
+  }, [animalId, companyId, ready, cacheKey])
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -86,6 +100,7 @@ export function AnimalInoculationsPanel({
         companyId={companyId}
         userId={userId}
         loading={loading}
+        readOnly={readOnly}
         onReload={loadRecords}
       />
       <HealthSection
@@ -100,6 +115,7 @@ export function AnimalInoculationsPanel({
         companyId={companyId}
         userId={userId}
         loading={loading}
+        readOnly={readOnly}
         onReload={loadRecords}
       />
     </div>
@@ -123,6 +139,7 @@ function HealthSection({
   companyId,
   userId,
   loading,
+  readOnly,
   onReload,
 }: {
   kind: HealthRecordKind
@@ -136,6 +153,7 @@ function HealthSection({
   companyId: string
   userId: string
   loading: boolean
+  readOnly: boolean
   onReload: () => Promise<void>
 }) {
   const [form, setForm] = useState<AnimalInoculationFormData>(emptyInoculationForm(kind))
@@ -221,6 +239,10 @@ function HealthSection({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Health records are view only until the connection returns.')
+      return
+    }
     if (isTreatment) {
       if (!form.condition.trim()) {
         setError('Choose a condition or symptom.')
@@ -261,6 +283,10 @@ function HealthSection({
   }
 
   const handleDelete = async (record: AnimalInoculation) => {
+    if (readOnly) {
+      setError('You are offline. Health records are view only until the connection returns.')
+      return
+    }
     const recordLabel = isTreatment ? inoculationDisplayName(record) : record.name
     if (!window.confirm(`Delete ${noun} "${recordLabel}"?`)) return
     setError('')
@@ -277,6 +303,7 @@ function HealthSection({
 
   return (
     <div className="space-y-5">
+      {!readOnly && (
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">
           {editingId ? `Edit ${noun}` : `Record ${noun}`}
@@ -424,9 +451,10 @@ function HealthSection({
             )}
           </div>
         </form>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {success && <p className="text-sm text-pasture-800">{success}</p>}
 
       <Card>
         <div className="flex items-end justify-between gap-3">
@@ -486,6 +514,7 @@ function HealthSection({
                         { label: 'By', value: record.administered_by ?? '—' },
                       ]}
                       action={
+                        readOnly ? undefined : (
                         <div className="flex flex-col items-end gap-1">
                           <button
                             type="button"
@@ -502,6 +531,7 @@ function HealthSection({
                             Delete
                           </button>
                         </div>
+                        )
                       }
                     />
                   ))}
@@ -561,6 +591,8 @@ function HealthSection({
                         <td className="py-3 text-soil-600">{record.batch_number ?? '—'}</td>
                         <td className="py-3 text-soil-600">{record.administered_by ?? '—'}</td>
                         <td className="py-3 text-right">
+                          {!readOnly && (
+                            <>
                           <button
                             type="button"
                             className="mr-3 font-semibold text-pasture-800 hover:text-pasture-700"
@@ -575,6 +607,8 @@ function HealthSection({
                           >
                             Delete
                           </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import type {
   Animal,
   AnimalSelection,
@@ -78,6 +80,7 @@ function detailsFromAnimal(animal: Animal): AnimalDetailsForm {
 export function AnimalDetailPage() {
   const { animalId } = useParams<{ animalId: string }>()
   const { profile } = useAuth()
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const navigate = useNavigate()
   const [animal, setAnimal] = useState<Animal | null>(null)
   const [herdAnimals, setHerdAnimals] = useState<Animal[]>([])
@@ -109,76 +112,95 @@ export function AnimalDetailPage() {
   const [success, setSuccess] = useState('')
 
   const loadAnimal = async (showLoading = true) => {
-    if (!animalId || !profile?.company_id) return
+    if (!animalId || !profile?.company_id || !ready) return
 
     if (showLoading) setLoading(true)
-    const [animalRes, locationsRes, encampmentsRes, herdRes] = await Promise.all([
-      supabase
-        .from('animals')
-        .select('*, encampments(id, name, location_id, locations(id, name))')
-        .eq('id', animalId)
-        .eq('company_id', profile.company_id)
-        .maybeSingle(),
-      supabase
-        .from('locations')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name'),
-      supabase
-        .from('encampments')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name'),
-      supabase
-        .from('animals')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('tag_number', { ascending: true }),
-    ])
-
-    if (animalRes.error) setError(animalRes.error.message)
-    else if (!animalRes.data) setError('Animal not found.')
-    else {
-      setAnimal(animalRes.data)
-      setIdentity({
-        stud: animalRes.data.stud_number ?? '',
-        year: animalRes.data.id_year ?? '',
-        number: animalRes.data.id_number ?? '',
-      })
-      setDetails(detailsFromAnimal(animalRes.data))
-      setDamId(animalRes.data.dam_id ?? '')
-      setDamTag(animalRes.data.dam_tag_number ?? '')
-      setSireId(animalRes.data.sire_id ?? '')
-      setSireName(animalRes.data.sire_name ?? '')
-      setSalePrice(animalRes.data.sale_price == null ? '' : String(animalRes.data.sale_price))
-      setSoldOn(animalRes.data.sold_on ?? todayDateValue())
-      setBuyerName(animalRes.data.buyer_name ?? '')
-      setBuyerSurname(animalRes.data.buyer_surname ?? '')
-      setSaleNotes(animalRes.data.sale_notes ?? '')
-      const place = resolveAnimalPlace(
-        animalRes.data,
-        locationsRes.error ? [] : (locationsRes.data ?? []),
-        encampmentsRes.error ? [] : (encampmentsRes.data ?? []),
+    setError('')
+    const companyId = profile.company_id
+    try {
+      const data = await read(
+        (saved) => ({
+          animal: saved.animals.find((row) => row.id === animalId) ?? null,
+          locations: saved.locations,
+          encampments: saved.encampments,
+          herd: [...saved.animals].sort((a, b) =>
+            (a.tag_number ?? '').localeCompare(b.tag_number ?? '', undefined, { numeric: true }),
+          ),
+        }),
+        async () => {
+          const [animalRes, locationsRes, encampmentsRes, herdRes] = await Promise.all([
+            supabase
+              .from('animals')
+              .select('*, encampments(id, name, location_id, locations(id, name))')
+              .eq('id', animalId)
+              .eq('company_id', companyId)
+              .maybeSingle(),
+            supabase.from('locations').select('*').eq('company_id', companyId).order('name'),
+            supabase.from('encampments').select('*').eq('company_id', companyId).order('name'),
+            supabase
+              .from('animals')
+              .select('*')
+              .eq('company_id', companyId)
+              .order('tag_number', { ascending: true }),
+          ])
+          if (animalRes.error) throw new Error(animalRes.error.message)
+          if (locationsRes.error) throw new Error(locationsRes.error.message)
+          if (encampmentsRes.error) throw new Error(encampmentsRes.error.message)
+          if (herdRes.error) throw new Error(herdRes.error.message)
+          return {
+            animal: animalRes.data,
+            locations: locationsRes.data ?? [],
+            encampments: encampmentsRes.data ?? [],
+            herd: herdRes.data ?? [],
+          }
+        },
       )
-      setEncampmentId(place.camp?.id ?? animalRes.data.encampment_id ?? '')
-      setLocationId(place.location?.id ?? '')
+
+      if (!data.animal) {
+        setAnimal(null)
+        setError('Animal not found.')
+      } else {
+        const animalRow = data.animal
+        setAnimal(animalRow)
+        setIdentity({
+          stud: animalRow.stud_number ?? '',
+          year: animalRow.id_year ?? '',
+          number: animalRow.id_number ?? '',
+        })
+        setDetails(detailsFromAnimal(animalRow))
+        setDamId(animalRow.dam_id ?? '')
+        setDamTag(animalRow.dam_tag_number ?? '')
+        setSireId(animalRow.sire_id ?? '')
+        setSireName(animalRow.sire_name ?? '')
+        setSalePrice(animalRow.sale_price == null ? '' : String(animalRow.sale_price))
+        setSoldOn(animalRow.sold_on ?? todayDateValue())
+        setBuyerName(animalRow.buyer_name ?? '')
+        setBuyerSurname(animalRow.buyer_surname ?? '')
+        setSaleNotes(animalRow.sale_notes ?? '')
+        const place = resolveAnimalPlace(animalRow, data.locations, data.encampments)
+        setEncampmentId(place.camp?.id ?? animalRow.encampment_id ?? '')
+        setLocationId(place.location?.id ?? '')
+      }
+
+      setLocations(data.locations)
+      setEncampments(data.encampments)
+      setHerdAnimals(data.herd)
+    } catch (err) {
+      setError(errorText(err, 'Failed to load animal'))
+    } finally {
+      setLoading(false)
     }
-
-    if (locationsRes.error) setError(locationsRes.error.message)
-    else setLocations(locationsRes.data ?? [])
-
-    if (encampmentsRes.error) setError(encampmentsRes.error.message)
-    else setEncampments(encampmentsRes.data ?? [])
-
-    if (herdRes.error) setError(herdRes.error.message)
-    else setHerdAnimals(herdRes.data ?? [])
-
-    setLoading(false)
   }
 
   useEffect(() => {
-    loadAnimal()
-  }, [animalId, profile?.company_id])
+    void loadAnimal()
+  }, [animalId, profile?.company_id, ready, cacheKey])
+
+  const offlineWriteError = () => {
+    if (!readOnly) return false
+    setError('You are offline. This record is view only until the connection returns.')
+    return true
+  }
 
   const campsForLocation = useMemo(
     () => encampments.filter((e) => e.location_id === locationId),
@@ -206,6 +228,7 @@ export function AnimalDetailPage() {
 
   const handleDeleteAnimal = async () => {
     if (!animal) return
+    if (offlineWriteError()) return
     const label = animalLabel(animal)
     if (
       !window.confirm(
@@ -228,6 +251,7 @@ export function AnimalDetailPage() {
 
   const handleSavePlace = async (e: FormEvent) => {
     e.preventDefault()
+    if (offlineWriteError()) return
     if (!animal || !profile?.company_id) return
 
     setSavingPlace(true)
@@ -262,6 +286,7 @@ export function AnimalDetailPage() {
 
   const handleSaveIdentity = async (e: FormEvent) => {
     e.preventDefault()
+    if (offlineWriteError()) return
     if (!animal) return
 
     const stud = padDigits(identity.stud, 4)
@@ -316,6 +341,7 @@ export function AnimalDetailPage() {
 
   const handleSaveDetails = async (e: FormEvent) => {
     e.preventDefault()
+    if (offlineWriteError()) return
     if (!animal || !details) return
 
     const opt = (value: string) => (value.trim() === '' ? null : value.trim())
@@ -353,6 +379,7 @@ export function AnimalDetailPage() {
 
   const handleSavePedigree = async (e: FormEvent) => {
     e.preventDefault()
+    if (offlineWriteError()) return
     if (!animal) return
 
     setSavingPedigree(true)
@@ -382,6 +409,7 @@ export function AnimalDetailPage() {
 
   const handleSaveSale = async (e: FormEvent) => {
     e.preventDefault()
+    if (offlineWriteError()) return
     if (!animal) return
 
     const price = parseSalePrice(salePrice)
@@ -426,6 +454,7 @@ export function AnimalDetailPage() {
 
   const handleClearSale = async () => {
     if (!animal?.sale_price) return
+    if (offlineWriteError()) return
     if (!window.confirm('Remove the sale price, date, buyer, and notes for this animal?')) return
 
     setSavingSale(true)

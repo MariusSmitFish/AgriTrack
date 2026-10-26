@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import type { Encampment, FarmLocation } from '../../lib/types'
 import { encampmentLabel, locationLabel } from '../../lib/locations'
 import { filterBySearch } from '../../lib/search'
@@ -18,8 +20,18 @@ import {
   PageHeader,
 } from '../../components/layout/AppShell'
 
+function campCounts(animals: { encampment_id: string | null }[]) {
+  const counts: Record<string, number> = {}
+  for (const row of animals) {
+    if (!row.encampment_id) continue
+    counts[row.encampment_id] = (counts[row.encampment_id] ?? 0) + 1
+  }
+  return counts
+}
+
 export function LocationsPage() {
   const { profile } = useAuth()
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const isAdmin = profile?.role === 'company_admin'
 
   const [locations, setLocations] = useState<FarmLocation[]>([])
@@ -45,55 +57,55 @@ export function LocationsPage() {
   const deferredCampQuery = useDeferredValue(campQuery)
 
   const loadData = async () => {
-    if (!profile?.company_id) return
+    if (!profile?.company_id || !ready) return
 
     setLoading(true)
     setError('')
 
-    const [locationsRes, encampmentsRes, animalsRes] = await Promise.all([
-      supabase
-        .from('locations')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name'),
-      supabase
-        .from('encampments')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name'),
-      supabase
-        .from('animals')
-        .select('encampment_id')
-        .eq('company_id', profile.company_id)
-        .not('encampment_id', 'is', null),
-    ])
-
-    if (locationsRes.error) setError(locationsRes.error.message)
-    else {
-      setLocations(locationsRes.data ?? [])
-      if (!selectedLocationId && (locationsRes.data?.length ?? 0) > 0) {
-        setSelectedLocationId(locationsRes.data![0].id)
+    try {
+      const companyId = profile.company_id
+      const data = await read(
+        (saved) => ({
+          locations: saved.locations,
+          encampments: saved.encampments,
+          animalCounts: campCounts(saved.animals),
+        }),
+        async () => {
+          const [locationsRes, encampmentsRes, animalsRes] = await Promise.all([
+            supabase.from('locations').select('*').eq('company_id', companyId).order('name'),
+            supabase.from('encampments').select('*').eq('company_id', companyId).order('name'),
+            supabase
+              .from('animals')
+              .select('encampment_id')
+              .eq('company_id', companyId)
+              .not('encampment_id', 'is', null),
+          ])
+          if (locationsRes.error) throw new Error(locationsRes.error.message)
+          if (encampmentsRes.error) throw new Error(encampmentsRes.error.message)
+          if (animalsRes.error) throw new Error(animalsRes.error.message)
+          return {
+            locations: locationsRes.data ?? [],
+            encampments: encampmentsRes.data ?? [],
+            animalCounts: campCounts(animalsRes.data ?? []),
+          }
+        },
+      )
+      setLocations(data.locations)
+      setEncampments(data.encampments)
+      setAnimalCounts(data.animalCounts)
+      if (!selectedLocationId && data.locations.length > 0) {
+        setSelectedLocationId(data.locations[0].id)
       }
+    } catch (err) {
+      setError(errorText(err, 'Failed to load locations'))
+    } finally {
+      setLoading(false)
     }
-
-    if (encampmentsRes.error) setError(encampmentsRes.error.message)
-    else setEncampments(encampmentsRes.data ?? [])
-
-    if (!animalsRes.error) {
-      const counts: Record<string, number> = {}
-      for (const row of animalsRes.data ?? []) {
-        if (!row.encampment_id) continue
-        counts[row.encampment_id] = (counts[row.encampment_id] ?? 0) + 1
-      }
-      setAnimalCounts(counts)
-    }
-
-    setLoading(false)
   }
 
   useEffect(() => {
-    loadData()
-  }, [profile?.company_id])
+    void loadData()
+  }, [profile?.company_id, ready, cacheKey])
 
   const selectedLocation = useMemo(
     () => locations.find((l) => l.id === selectedLocationId) ?? null,
@@ -176,6 +188,10 @@ export function LocationsPage() {
 
   const handleSaveLocation = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Locations are view only until the connection returns.')
+      return
+    }
     if (!profile?.company_id || !isAdmin) return
 
     setSavingLocation(true)
@@ -207,6 +223,10 @@ export function LocationsPage() {
   }
 
   const handleDeleteLocation = async (location: FarmLocation) => {
+    if (readOnly) {
+      setError('You are offline. Locations are view only until the connection returns.')
+      return
+    }
     if (!isAdmin) return
     const campCount = encampments.filter((e) => e.location_id === location.id).length
     const message =
@@ -232,6 +252,10 @@ export function LocationsPage() {
 
   const handleSaveCamp = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Locations are view only until the connection returns.')
+      return
+    }
     if (!profile?.company_id || !isAdmin || !selectedLocationId) return
 
     setSavingCamp(true)
@@ -261,6 +285,10 @@ export function LocationsPage() {
   }
 
   const handleDeleteCamp = async (camp: Encampment) => {
+    if (readOnly) {
+      setError('You are offline. Locations are view only until the connection returns.')
+      return
+    }
     if (!isAdmin) return
     const count = animalCounts[camp.id] ?? 0
     const message =

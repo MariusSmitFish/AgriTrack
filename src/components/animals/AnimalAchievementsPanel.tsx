@@ -11,6 +11,8 @@ import {
 import { formatInoculationDate } from '../../lib/inoculations'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
@@ -34,6 +36,7 @@ export function AnimalAchievementsPanel({
   companyId,
   userId,
 }: AnimalAchievementsPanelProps) {
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const [records, setRecords] = useState<AnimalAchievement[]>([])
   const [form, setForm] = useState<AnimalAchievementFormData>(emptyAchievementForm)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -67,20 +70,27 @@ export function AnimalAchievementsPanel({
   } = useClientPagination(filteredRecords, { resetKey: deferredQuery })
 
   const loadRecords = async (showLoading = false) => {
+    if (!ready) return
     if (showLoading) setLoading(true)
     setError('')
     try {
-      setRecords(await fetchAnimalAchievements(animalId))
+      setRecords(
+        await read(
+          (saved) => saved.achievements.filter((row) => row.animal_id === animalId),
+          () => fetchAnimalAchievements(animalId),
+        ),
+      )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load show results')
+      setError(errorText(err, 'Failed to load show results'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadRecords(true)
-  }, [animalId])
+    if (!ready) return
+    void loadRecords(true)
+  }, [animalId, ready, cacheKey])
 
   const set = <K extends keyof AnimalAchievementFormData>(
     key: K,
@@ -109,6 +119,10 @@ export function AnimalAchievementsPanel({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Show results are view only until the connection returns.')
+      return
+    }
     setSubmitting(true)
     setError('')
     setSuccess('')
@@ -139,6 +153,10 @@ export function AnimalAchievementsPanel({
   }
 
   const handleDelete = async (record: AnimalAchievement) => {
+    if (readOnly) {
+      setError('You are offline. Show results are view only until the connection returns.')
+      return
+    }
     if (!window.confirm(`Delete the ${record.result} result from ${record.show_name}?`)) return
     setError('')
     setSuccess('')
@@ -159,8 +177,11 @@ export function AnimalAchievementsPanel({
           {editingId ? 'Edit show result' : 'Achievements'}
         </h3>
         <p className="mt-1 text-sm text-soil-500">
-          Record a show name, class, and result. Pick a common placing or type your own.
+          {readOnly
+            ? 'Saved on this device. Adding a result needs a connection.'
+            : 'Record a show name, class, and result. Pick a common placing or type your own.'}
         </p>
+        {!readOnly && (
         <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <Input
             label="Show"
@@ -221,6 +242,7 @@ export function AnimalAchievementsPanel({
             )}
           </div>
         </form>
+        )}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>

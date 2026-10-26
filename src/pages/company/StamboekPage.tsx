@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { deleteAnimal } from '../../lib/animals'
 import { birthExportRows } from '../../lib/births'
 import { exportCsv } from '../../lib/exportCsv'
@@ -17,6 +19,7 @@ function yearStartDate() {
 
 export function StamboekPage() {
   const { profile } = useAuth()
+  const { ready, read, cacheKey } = useOfflineRead()
   const [count, setCount] = useState(0)
   const [loadingCount, setLoadingCount] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -31,21 +34,33 @@ export function StamboekPage() {
   const isAdmin = profile?.role === 'company_admin'
 
   const loadCount = useCallback(async () => {
-    if (!profile?.company_id) {
-      setLoadingCount(false)
+    if (!profile?.company_id || !ready) {
+      if (!profile?.company_id) setLoadingCount(false)
       return
     }
+    const companyId = profile.company_id
     setLoadingCount(true)
-    const { count: total, error: countError } = await supabase
-      .from('animals')
-      .select('id', { count: 'exact', head: true })
-      .eq('company_id', profile.company_id)
-      .eq('status', 'stamboek')
-
-    if (countError) setError(countError.message)
-    else setCount(total ?? 0)
-    setLoadingCount(false)
-  }, [profile?.company_id])
+    try {
+      const total = await read(
+        (saved) => saved.animals.filter((animal) => animal.status === 'stamboek').length,
+        async () => {
+          const { count: nextCount, error: countError } = await supabase
+            .from('animals')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', companyId)
+            .eq('status', 'stamboek')
+          if (countError) throw new Error(countError.message)
+          return nextCount ?? 0
+        },
+      )
+      setCount(total)
+      setError('')
+    } catch (err) {
+      setError(errorText(err, 'Failed to load stamboek animals'))
+    } finally {
+      setLoadingCount(false)
+    }
+  }, [profile?.company_id, ready, cacheKey, read])
 
   useEffect(() => {
     void loadCount()

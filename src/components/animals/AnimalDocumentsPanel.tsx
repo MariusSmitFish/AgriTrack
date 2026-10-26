@@ -24,6 +24,7 @@ import {
   MobileCard,
   MobileCardList,
 } from '../layout/AppShell'
+import { useOfflineRead } from '../../contexts/OfflineContext'
 
 interface AnimalDocumentsPanelProps {
   animalId: string
@@ -32,6 +33,7 @@ interface AnimalDocumentsPanelProps {
 }
 
 export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocumentsPanelProps) {
+  const { ready, online, cacheKey } = useOfflineRead()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [documents, setDocuments] = useState<AnimalDocumentWithUrl[]>([])
   const [form, setForm] = useState<AnimalDocumentFormData>(emptyDocumentForm)
@@ -78,8 +80,15 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
   }
 
   useEffect(() => {
-    loadDocuments(true)
-  }, [animalId])
+    if (!ready) return
+    if (!online) {
+      setDocuments([])
+      setError('')
+      setLoading(false)
+      return
+    }
+    void loadDocuments(true)
+  }, [animalId, ready, online, cacheKey])
 
   const set = <K extends keyof AnimalDocumentFormData>(key: K, value: AnimalDocumentFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -180,6 +189,7 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
 
   return (
     <div className="space-y-5">
+      {online && (
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">
           {editingId ? 'Edit document' : 'Supporting documents'}
@@ -250,9 +260,10 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
             )}
           </div>
         </form>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {success && <p className="text-sm text-pasture-800">{success}</p>}
 
       <Card>
         <div className="flex items-end justify-between gap-3">
@@ -265,7 +276,11 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
         {loading ? (
           <EmptyState>Loading documents...</EmptyState>
         ) : documents.length === 0 ? (
-          <EmptyState>No supporting documents yet for this animal.</EmptyState>
+          <EmptyState>
+            {online
+              ? 'No supporting documents yet for this animal.'
+              : 'Documents need a connection. They are not saved on this device.'}
+          </EmptyState>
         ) : (
           <>
             <div className="mt-4">

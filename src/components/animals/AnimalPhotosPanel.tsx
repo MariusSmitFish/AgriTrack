@@ -17,6 +17,7 @@ import { Card } from '../ui/Card'
 import { SearchField } from '../ui/SearchField'
 import { Pagination } from '../ui/Pagination'
 import { EmptyState } from '../layout/AppShell'
+import { useOfflineRead } from '../../contexts/OfflineContext'
 
 interface AnimalPhotosPanelProps {
   animalId: string
@@ -25,6 +26,7 @@ interface AnimalPhotosPanelProps {
 }
 
 export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosPanelProps) {
+  const { ready, online, cacheKey } = useOfflineRead()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [photos, setPhotos] = useState<AnimalPhotoWithUrl[]>([])
   const [loading, setLoading] = useState(true)
@@ -74,8 +76,15 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
   }
 
   useEffect(() => {
-    loadPhotos()
-  }, [animalId])
+    if (!ready) return
+    if (!online) {
+      setPhotos([])
+      setError('')
+      setLoading(false)
+      return
+    }
+    void loadPhotos()
+  }, [animalId, ready, online, cacheKey])
 
   useEffect(() => {
     return () => {
@@ -203,6 +212,7 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
 
   return (
     <div className="space-y-5 sm:space-y-6">
+      {online && (
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">Add photo</h3>
         <p className="mt-1 text-sm text-soil-500">
@@ -262,10 +272,10 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
             )}
           </div>
         </form>
-
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
       </Card>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {success && <p className="text-sm text-pasture-800">{success}</p>}
 
       <Card>
         <div className="flex items-end justify-between gap-3">
@@ -279,7 +289,11 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
         {loading ? (
           <EmptyState>Loading photos...</EmptyState>
         ) : photos.length === 0 ? (
-          <EmptyState>No photos yet for this animal.</EmptyState>
+          <EmptyState>
+            {online
+              ? 'No photos yet for this animal.'
+              : 'Photos need a connection. They are not saved on this device.'}
+          </EmptyState>
         ) : (
           <>
             <div className="mt-4">

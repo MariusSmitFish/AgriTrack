@@ -18,6 +18,8 @@ import {
   offspringNoun,
 } from '../../lib/speciesTerms'
 import { Button } from '../ui/Button'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Card } from '../ui/Card'
@@ -36,6 +38,7 @@ export function AnimalBreedingPanel({
   userId,
   herdAnimals,
 }: AnimalBreedingPanelProps) {
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const species = animal.species
   const gestation = gestationDaysForSpecies(species)
   const outcomeOptions = breedingOutcomeOptionsForSpecies(species)
@@ -79,20 +82,30 @@ export function AnimalBreedingPanel({
   )
 
   const load = async () => {
+    if (!ready) return
     setLoading(true)
     setError('')
     try {
-      setEvents(await fetchAnimalBreedingEvents(animal.id))
+      setEvents(
+        await read(
+          (saved) =>
+            saved.breedingEvents.filter(
+              (event) => event.dam_id === animal.id || event.sire_id === animal.id,
+            ),
+          () => fetchAnimalBreedingEvents(animal.id),
+        ),
+      )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load breeding events')
+      setError(errorText(err, 'Failed to load breeding events'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    load()
-  }, [animal.id])
+    if (!ready) return
+    void load()
+  }, [animal.id, ready, cacheKey])
 
   const set = <K extends keyof BreedingEventFormData>(key: K, value: BreedingEventFormData[K]) => {
     setForm((prev) => {
@@ -106,6 +119,10 @@ export function AnimalBreedingPanel({
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Breeding records are view only until the connection returns.')
+      return
+    }
     if (!canBeDam) {
       setError('Breeding events are logged against the dam. Open the dam’s record to add one.')
       return
@@ -140,6 +157,10 @@ export function AnimalBreedingPanel({
   }
 
   const handleDelete = async (event: BreedingEvent) => {
+    if (readOnly) {
+      setError('You are offline. Breeding records are view only until the connection returns.')
+      return
+    }
     if (!window.confirm('Delete this breeding event?')) return
     try {
       await deleteBreedingEvent(event.id)
@@ -161,7 +182,7 @@ export function AnimalBreedingPanel({
         <p className="text-sm font-semibold text-soil-600">{events.length}</p>
       </div>
 
-      {canBeDam && (
+      {canBeDam && !readOnly && (
         <form
           onSubmit={handleSubmit}
           className="section-inset mt-4 grid grid-cols-1 gap-4 rounded-2xl p-4 md:grid-cols-2"

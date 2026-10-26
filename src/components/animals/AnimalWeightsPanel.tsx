@@ -13,6 +13,8 @@ import {
 } from '../../lib/weights'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
@@ -32,6 +34,7 @@ interface AnimalWeightsPanelProps {
 }
 
 export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeightsPanelProps) {
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const [records, setRecords] = useState<AnimalWeight[]>([])
   const [form, setForm] = useState<AnimalWeightFormData>(emptyWeightForm)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -75,20 +78,30 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
   }
 
   const loadRecords = async () => {
+    if (!ready) return
     setLoading(true)
     setError('')
     try {
-      setRecords(await fetchAnimalWeights(animalId))
+      setRecords(
+        await read(
+          (saved) =>
+            saved.weights
+              .filter((row) => row.animal_id === animalId)
+              .map((row) => ({ ...row, weight_kg: Number(row.weight_kg) })),
+          () => fetchAnimalWeights(animalId),
+        ),
+      )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load weights')
+      setError(errorText(err, 'Failed to load weights'))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadRecords()
-  }, [animalId])
+    if (!ready) return
+    void loadRecords()
+  }, [animalId, ready, cacheKey])
 
   const resetForm = () => {
     setForm(emptyWeightForm())
@@ -97,6 +110,10 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Weights are view only until the connection returns.')
+      return
+    }
     setSubmitting(true)
     setError('')
     setSuccess('')
@@ -145,6 +162,10 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
   }
 
   const handleDelete = async (record: AnimalWeight) => {
+    if (readOnly) {
+      setError('You are offline. Weights are view only until the connection returns.')
+      return
+    }
     if (
       !window.confirm(
         `Delete weight ${formatWeightKg(record.weight_kg)} from ${formatWeightDate(record.weighed_at)}?`,
@@ -181,6 +202,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
         </div>
       </div>
 
+      {!readOnly && (
       <form
         onSubmit={handleSubmit}
         className="section-inset mt-4 grid grid-cols-1 gap-4 rounded-2xl p-4 md:grid-cols-2"
@@ -225,6 +247,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
           )}
         </div>
       </form>
+      )}
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}

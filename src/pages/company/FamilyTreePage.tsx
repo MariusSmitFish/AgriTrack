@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import type { Animal } from '../../lib/types'
 import { animalLabel, buildPedigreeTree } from '../../lib/animals'
 import { fetchOtherFarmRelatives, type OtherFarmRelative } from '../../lib/otherFarmFamily'
@@ -13,6 +15,7 @@ import { PageHeader } from '../../components/layout/AppShell'
 
 export function FamilyTreePage() {
   const { profile } = useAuth()
+  const { ready, online, read, cacheKey } = useOfflineRead()
   const [searchParams, setSearchParams] = useSearchParams()
   const [animals, setAnimals] = useState<Animal[]>([])
   const [loading, setLoading] = useState(true)
@@ -21,20 +24,39 @@ export function FamilyTreePage() {
   const [otherFarm, setOtherFarm] = useState<OtherFarmRelative[]>([])
 
   useEffect(() => {
-    if (!profile?.company_id) return
+    if (!profile?.company_id || !ready) return
+    const companyId = profile.company_id
+    let cancelled = false
 
-    setLoading(true)
-    supabase
-      .from('animals')
-      .select('*')
-      .eq('company_id', profile.company_id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) setError(fetchError.message)
-        else setAnimals(data ?? [])
-        setLoading(false)
-      })
-  }, [profile?.company_id])
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await read(
+          (saved) => saved.animals,
+          async () => {
+            const { data: rows, error: fetchError } = await supabase
+              .from('animals')
+              .select('*')
+              .eq('company_id', companyId)
+              .order('created_at', { ascending: false })
+            if (fetchError) throw new Error(fetchError.message)
+            return rows ?? []
+          },
+        )
+        if (!cancelled) setAnimals(data)
+      } catch (err) {
+        if (!cancelled) setError(errorText(err, 'Failed to load animals'))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.company_id, ready, cacheKey, read])
 
   useEffect(() => {
     const fromUrl = searchParams.get('animal')
@@ -42,7 +64,7 @@ export function FamilyTreePage() {
   }, [searchParams])
 
   useEffect(() => {
-    if (!selectedId) {
+    if (!selectedId || !online) {
       setOtherFarm([])
       return
     }
@@ -57,7 +79,7 @@ export function FamilyTreePage() {
     return () => {
       cancelled = true
     }
-  }, [selectedId])
+  }, [selectedId, online])
 
   const tree = useMemo(
     () => (selectedId ? buildPedigreeTree(animals, selectedId) : null),

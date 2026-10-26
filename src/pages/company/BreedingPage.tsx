@@ -2,6 +2,8 @@ import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from '
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import type { Animal, BreedingEvent, BreedingEventFormData } from '../../lib/types'
 import { animalLabel, animalOptionLabel, formatAnimalSex } from '../../lib/animals'
 import { formatInoculationDate, todayDateValue } from '../../lib/inoculations'
@@ -44,6 +46,7 @@ type FilterMode = 'all' | 'upcoming' | 'overdue'
 
 export function BreedingPage() {
   const { profile } = useAuth()
+  const { ready, read, cacheKey, readOnly } = useOfflineRead()
   const [animals, setAnimals] = useState<Animal[]>([])
   const [events, setEvents] = useState<BreedingEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,32 +59,50 @@ export function BreedingPage() {
   const [filter, setFilter] = useState<FilterMode>('all')
   const deferredQuery = useDeferredValue(query)
 
-  const load = async () => {
-    if (!profile?.company_id) return
-    setLoading(true)
-    setError('')
-    try {
-      const [animalsRes, breedingData] = await Promise.all([
-        supabase
-          .from('animals')
-          .select('*')
-          .eq('company_id', profile.company_id)
-          .order('tag_number', { ascending: true }),
-        fetchCompanyBreedingEvents(profile.company_id),
-      ])
-      if (animalsRes.error) throw animalsRes.error
-      setAnimals(animalsRes.data ?? [])
-      setEvents(breedingData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load breeding data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    load()
-  }, [profile?.company_id])
+    if (!profile?.company_id || !ready) return
+    const companyId = profile.company_id
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await read(
+          (saved) => ({
+            animals: [...saved.animals].sort((a, b) =>
+              (a.tag_number ?? '').localeCompare(b.tag_number ?? '', undefined, { numeric: true }),
+            ),
+            events: saved.breedingEvents,
+          }),
+          async () => {
+            const [animalsRes, breedingData] = await Promise.all([
+              supabase
+                .from('animals')
+                .select('*')
+                .eq('company_id', companyId)
+                .order('tag_number', { ascending: true }),
+              fetchCompanyBreedingEvents(companyId),
+            ])
+            if (animalsRes.error) throw new Error(animalsRes.error.message)
+            return { animals: animalsRes.data ?? [], events: breedingData }
+          },
+        )
+        if (cancelled) return
+        setAnimals(data.animals)
+        setEvents(data.events)
+      } catch (err) {
+        if (!cancelled) setError(errorText(err, 'Failed to load breeding data'))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.company_id, ready, cacheKey, read])
 
   const dams = useMemo(
     () => animals.filter((a) => a.sex === 'female' || a.sex === 'unknown' || !a.sex),
@@ -178,6 +199,10 @@ export function BreedingPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (readOnly) {
+      setError('You are offline. Breeding records are view only until the connection returns.')
+      return
+    }
     if (!profile?.company_id) return
     if (!form.dam_id) {
       setError('Select a dam.')
@@ -218,6 +243,10 @@ export function BreedingPage() {
   }
 
   const handleDelete = async (event: BreedingEvent) => {
+    if (readOnly) {
+      setError('You are offline. Breeding records are view only until the connection returns.')
+      return
+    }
     if (!window.confirm(`Delete breeding record for ${labelFor(event.dam_id)}?`)) return
     try {
       await deleteBreedingEvent(event.id)

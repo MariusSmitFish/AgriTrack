@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useOfflineRead } from '../../contexts/OfflineContext'
+import { errorText } from '../../lib/offlineHerd'
 import { supabase } from '../../lib/supabase'
 import type { Animal, AnimalInoculation, BreedingEvent } from '../../lib/types'
 import { animalLabel } from '../../lib/animals'
@@ -19,6 +21,7 @@ import { EmptyState, PageHeader } from '../../components/layout/AppShell'
 
 export function CompanyDashboardPage() {
   const { profile } = useAuth()
+  const { ready, read, cacheKey } = useOfflineRead()
   const [animals, setAnimals] = useState<Animal[]>([])
   const [inoculations, setInoculations] = useState<AnimalInoculation[]>([])
   const [breedingEvents, setBreedingEvents] = useState<BreedingEvent[]>([])
@@ -26,34 +29,56 @@ export function CompanyDashboardPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!profile?.company_id || !ready) return
+    const companyId = profile.company_id
+    let cancelled = false
+
     const load = async () => {
-      if (!profile?.company_id) return
       setLoading(true)
       setError('')
       try {
-        const [animalsRes, inoculationsData, breedingData] = await Promise.all([
-          supabase
-            .from('animals')
-            .select('*, encampments(id, name, location_id, locations(id, name))')
-            .eq('company_id', profile.company_id)
-            .order('created_at', { ascending: false }),
-          fetchCompanyInoculations(profile.company_id),
-          fetchCompanyBreedingEvents(profile.company_id),
-        ])
-
-        if (animalsRes.error) throw animalsRes.error
-        setAnimals(animalsRes.data ?? [])
-        setInoculations(inoculationsData)
-        setBreedingEvents(breedingData)
+        const data = await read(
+          (saved) => ({
+            animals: saved.animals,
+            inoculations: saved.inoculations
+              .filter((row) => row.next_due_at)
+              .sort((a, b) => (a.next_due_at ?? '').localeCompare(b.next_due_at ?? '')),
+            breedingEvents: saved.breedingEvents,
+          }),
+          async () => {
+            const [animalsRes, inoculationsData, breedingData] = await Promise.all([
+              supabase
+                .from('animals')
+                .select('*, encampments(id, name, location_id, locations(id, name))')
+                .eq('company_id', companyId)
+                .order('created_at', { ascending: false }),
+              fetchCompanyInoculations(companyId),
+              fetchCompanyBreedingEvents(companyId),
+            ])
+            if (animalsRes.error) throw new Error(animalsRes.error.message)
+            return {
+              animals: animalsRes.data ?? [],
+              inoculations: inoculationsData,
+              breedingEvents: breedingData,
+            }
+          },
+        )
+        if (cancelled) return
+        setAnimals(data.animals)
+        setInoculations(data.inoculations)
+        setBreedingEvents(data.breedingEvents)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+        if (!cancelled) setError(errorText(err, 'Failed to load dashboard'))
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    load()
-  }, [profile?.company_id])
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.company_id, ready, cacheKey, read])
 
   const stats = useMemo(() => computeHerdStats(animals), [animals])
   const campCounts = useMemo(() => computeCampHeadcounts(animals), [animals])

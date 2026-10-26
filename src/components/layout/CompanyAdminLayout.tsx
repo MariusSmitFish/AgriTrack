@@ -1,5 +1,6 @@
 import { AppShell, type NavItem } from './AppShell'
 import { useAuth } from '../../contexts/AuthContext'
+import { OfflineBanner, OfflineProvider } from '../../contexts/OfflineContext'
 
 export function CompanyAdminLayout() {
   const { profile } = useAuth()
@@ -20,5 +21,9 @@ export function CompanyAdminLayout() {
     ...(isAdmin ? [{ to: '/app/users', label: 'Team' }] : []),
   ]
 
-  return <AppShell title={companyName} navItems={navItems} />
+  return (
+    <OfflineProvider companyId={profile?.company_id ?? null}>
+      <AppShell title={companyName} navItems={navItems} banner={<OfflineBanner />} />
+    </OfflineProvider>
+  )
 }
