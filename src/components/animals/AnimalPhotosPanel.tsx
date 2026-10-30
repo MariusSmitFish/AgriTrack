@@ -27,7 +27,8 @@ interface AnimalPhotosPanelProps {
 
 export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosPanelProps) {
   const { ready, online, cacheKey } = useOfflineRead()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const [photos, setPhotos] = useState<AnimalPhotoWithUrl[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -98,11 +99,13 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
     setSelectedFile(null)
     setCaption('')
     setCapturedAt(toDatetimeLocalValue(new Date()))
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
+    if (galleryInputRef.current) galleryInputRef.current.value = ''
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
@@ -225,15 +228,30 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
               type="button"
               variant="secondary"
               className="w-full sm:w-auto"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => cameraInputRef.current?.click()}
             >
-              Take or choose photo
+              Take photo
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={() => galleryInputRef.current?.click()}
+            >
+              Choose from gallery
             </Button>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               className="hidden"
               onChange={handleFileChange}
             />
