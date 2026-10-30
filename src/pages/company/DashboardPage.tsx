@@ -168,6 +168,7 @@ export function CompanyDashboardPage() {
               <ActionLink to="/app/breeding">Breeding</ActionLink>
               <ActionLink to="/app/family-trees">Family tree</ActionLink>
               <ActionLink to="/app/locations">Locations</ActionLink>
+              <ActionLink to="/app/analytics">Analytics</ActionLink>
               <ActionLink to="/app/configurations">Configurations</ActionLink>
               {profile?.role === 'company_admin' && (
                 <ActionLink to="/app/users">Manage farm team</ActionLink>

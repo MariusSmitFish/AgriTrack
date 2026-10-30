@@ -10,6 +10,7 @@ export function CompanyAdminLayout() {
 
   const navItems: NavItem[] = [
     { to: '/app', label: 'Dashboard', end: true },
+    { to: '/app/analytics', label: 'Analytics' },
     { to: '/app/animals', label: 'Animals' },
     { to: '/app/stamboek', label: 'Stamboek' },
     { to: '/app/family-trees', label: 'Family tree' },

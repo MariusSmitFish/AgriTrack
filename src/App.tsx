@@ -10,6 +10,7 @@ import { SuperAdminDashboardPage } from './pages/superadmin/DashboardPage'
 import { SuperAdminCompaniesPage } from './pages/superadmin/CompaniesPage'
 import { SuperAdminUsersPage } from './pages/superadmin/UsersPage'
 import { CompanyDashboardPage } from './pages/company/DashboardPage'
+import { AnalyticsPage } from './pages/company/AnalyticsPage'
 import { CompanyUsersPage } from './pages/company/UsersPage'
 import { AnimalsPage } from './pages/company/AnimalsPage'
 import { AnimalDetailPage } from './pages/company/AnimalDetailPage'
@@ -46,6 +47,7 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={['company_admin', 'company_user']} />}>
             <Route path="/app" element={<CompanyAdminLayout />}>
               <Route index element={<CompanyDashboardPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="users" element={<CompanyUsersPage />} />
               <Route path="animals" element={<AnimalsPage />} />
               <Route path="animals/new" element={<CaptureAnimalPage />} />
