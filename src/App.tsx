@@ -8,6 +8,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage'
 import { SuperAdminDashboardPage } from './pages/superadmin/DashboardPage'
 import { SuperAdminCompaniesPage } from './pages/superadmin/CompaniesPage'
+import { SuperAdminPackagesPage } from './pages/superadmin/PackagesPage'
 import { SuperAdminUsersPage } from './pages/superadmin/UsersPage'
 import { CompanyDashboardPage } from './pages/company/DashboardPage'
 import { AnalyticsPage } from './pages/company/AnalyticsPage'
@@ -21,6 +22,7 @@ import { FamilyTreePage } from './pages/company/FamilyTreePage'
 import { LocationsPage } from './pages/company/LocationsPage'
 import { ConfigurationsPage } from './pages/company/ConfigurationsPage'
 import { BackupsPage } from './pages/company/BackupsPage'
+import { PackagePage } from './pages/company/PackagePage'
 import { BreedingPage } from './pages/company/BreedingPage'
 import { CaptureBirthPage } from './pages/company/CaptureBirthPage'
 import { InstallPrompt } from './components/pwa/InstallPrompt'
@@ -40,6 +42,7 @@ export default function App() {
             <Route path="/superadmin" element={<SuperAdminLayout />}>
               <Route index element={<SuperAdminDashboardPage />} />
               <Route path="companies" element={<SuperAdminCompaniesPage />} />
+              <Route path="packages" element={<SuperAdminPackagesPage />} />
               <Route path="users" element={<SuperAdminUsersPage />} />
             </Route>
           </Route>
@@ -61,6 +64,7 @@ export default function App() {
               <Route path="locations" element={<LocationsPage />} />
               <Route path="configurations" element={<ConfigurationsPage />} />
               <Route path="backups" element={<BackupsPage />} />
+              <Route path="package" element={<PackagePage />} />
             </Route>
           </Route>
 

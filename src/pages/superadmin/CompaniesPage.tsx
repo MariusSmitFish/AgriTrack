@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Company } from '../../lib/types'
+import type { Company, Package } from '../../lib/types'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../lib/farmDemo'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { Select } from '../../components/ui/Select'
 import { Card } from '../../components/ui/Card'
 import { SearchField } from '../../components/ui/SearchField'
 import { Pagination } from '../../components/ui/Pagination'
@@ -31,6 +32,9 @@ function slugify(name: string) {
 
 export function SuperAdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
+  const [packageId, setPackageId] = useState('')
+  const [savingPackageId, setSavingPackageId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -41,7 +45,12 @@ export function SuperAdminCompaniesPage() {
   const deferredQuery = useDeferredValue(query)
 
   const filteredCompanies = useMemo(
-    () => filterBySearch(companies, deferredQuery, (company) => [company.name, company.slug]),
+    () =>
+      filterBySearch(companies, deferredQuery, (company) => [
+        company.name,
+        company.slug,
+        company.packages?.name,
+      ]),
     [companies, deferredQuery],
   )
 
@@ -57,15 +66,33 @@ export function SuperAdminCompaniesPage() {
 
   const loadCompanies = async () => {
     setLoading(true)
-    const { data, error: fetchError } = await supabase
+    const withPackages = await supabase
       .from('companies')
-      .select('*')
+      .select('*, packages(id, name, slug)')
       .order('created_at', { ascending: false })
 
-    if (fetchError) {
-      setError(fetchError.message)
+    const [companiesRes, packagesRes] = await Promise.all([
+      withPackages.error
+        ? supabase.from('companies').select('*').order('created_at', { ascending: false })
+        : Promise.resolve(withPackages),
+      supabase.from('packages').select('*').order('sort_order'),
+    ])
+
+    if (companiesRes.error) {
+      setError(companiesRes.error.message)
     } else {
-      setCompanies(data ?? [])
+      setCompanies(companiesRes.data ?? [])
+    }
+
+    if (packagesRes.error) {
+      setError(packagesRes.error.message)
+    } else {
+      const nextPackages = (packagesRes.data ?? []) as Package[]
+      setPackages(nextPackages)
+      setPackageId((current) => {
+        if (current && nextPackages.some((pkg) => pkg.id === current)) return current
+        return nextPackages.find((pkg) => pkg.slug === 'entry')?.id ?? nextPackages[0]?.id ?? ''
+      })
     }
     setLoading(false)
   }
@@ -81,7 +108,11 @@ export function SuperAdminCompaniesPage() {
     setSubmitting(true)
 
     const slug = slugify(name)
-    const { error: insertError } = await supabase.from('companies').insert({ name, slug })
+    const { error: insertError } = await supabase.from('companies').insert({
+      name,
+      slug,
+      ...(packageId ? { package_id: packageId } : {}),
+    })
 
     if (insertError) {
       setError(insertError.message)
@@ -182,6 +213,48 @@ export function SuperAdminCompaniesPage() {
     }
   }
 
+  const handleAssignPackage = async (company: Company, nextPackageId: string) => {
+    if (!nextPackageId || nextPackageId === company.package_id) return
+
+    setSavingPackageId(company.id)
+    setError('')
+    setSuccess('')
+
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({ package_id: nextPackageId })
+      .eq('id', company.id)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      const next = packages.find((pkg) => pkg.id === nextPackageId) ?? null
+      setCompanies((current) =>
+        current.map((row) =>
+          row.id === company.id ? { ...row, package_id: nextPackageId, packages: next } : row,
+        ),
+      )
+      setSuccess(`${company.name} is now on ${next?.name ?? 'the selected package'}. Existing records stay.`)
+    }
+    setSavingPackageId(null)
+  }
+
+  const packageSelect = (company: Company) => (
+    <Select
+      aria-label={`Package for ${company.name}`}
+      value={company.package_id ?? ''}
+      disabled={savingPackageId === company.id || packages.length === 0}
+      onChange={(e) => handleAssignPackage(company, e.target.value)}
+    >
+      {packages.length === 0 && <option value="">No packages</option>}
+      {packages.map((pkg) => (
+        <option key={pkg.id} value={pkg.id}>
+          {pkg.name}
+        </option>
+      ))}
+    </Select>
+  )
+
   const farmActions = (company: Company) => {
     const busy = busyId === company.id
     return (
@@ -230,24 +303,37 @@ export function SuperAdminCompaniesPage() {
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Farms"
-        description="Register farms, seed demo livestock data, or reset a farm’s operational data."
+        description="Register farms, assign a package, seed demo livestock data, or reset a farm’s operational data."
       />
 
       <Card>
         <h3 className="font-display font-semibold text-pasture-900">Add farm</h3>
-        <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <Input
-              label="Farm name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Green Valley Ranch"
-              required
-            />
+        <form onSubmit={handleCreate} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input
+            label="Farm name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Green Valley Ranch"
+            required
+          />
+          <Select
+            label="Package"
+            value={packageId}
+            onChange={(e) => setPackageId(e.target.value)}
+            disabled={packages.length === 0}
+          >
+            {packages.length === 0 && <option value="">Entry (after migration)</option>}
+            {packages.map((pkg) => (
+              <option key={pkg.id} value={pkg.id}>
+                {pkg.name}
+              </option>
+            ))}
+          </Select>
+          <div className="md:col-span-2">
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? 'Creating...' : 'Add farm'}
+            </Button>
           </div>
-          <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
-            {submitting ? 'Creating...' : 'Add farm'}
-          </Button>
         </form>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         {success && <p className="mt-3 text-sm text-pasture-800">{success}</p>}
@@ -292,9 +378,17 @@ export function SuperAdminCompaniesPage() {
                       title={company.name}
                       subtitle={company.slug}
                       fields={[
+                        ...(packages.length > 0
+                          ? [{ label: 'Package', value: company.packages?.name ?? '—' }]
+                          : []),
                         { label: 'Created', value: new Date(company.created_at).toLocaleDateString() },
                       ]}
-                      action={farmActions(company)}
+                      action={
+                        <div className="flex w-36 flex-col gap-2">
+                          {packages.length > 0 && packageSelect(company)}
+                          {farmActions(company)}
+                        </div>
+                      }
                     />
                   ))}
                 </MobileCardList>
@@ -304,6 +398,7 @@ export function SuperAdminCompaniesPage() {
                     <tr className="border-b border-field-dark text-soil-500">
                       <th className="pb-2 font-medium">Name</th>
                       <th className="pb-2 font-medium">Slug</th>
+                      {packages.length > 0 && <th className="pb-2 font-medium">Package</th>}
                       <th className="pb-2 font-medium">Created</th>
                       <th className="pb-2 font-medium">Demo / reset</th>
                     </tr>
@@ -313,6 +408,9 @@ export function SuperAdminCompaniesPage() {
                       <tr key={company.id} className="border-b border-field-dark/60">
                         <td className="py-3 font-medium text-soil-800">{company.name}</td>
                         <td className="py-3 text-soil-600">{company.slug}</td>
+                        {packages.length > 0 && (
+                          <td className="min-w-40 py-3">{packageSelect(company)}</td>
+                        )}
                         <td className="py-3 text-soil-600">
                           {new Date(company.created_at).toLocaleDateString()}
                         </td>

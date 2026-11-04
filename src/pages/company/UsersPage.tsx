@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { createUser, deleteUser, supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { fetchCompanyPlan, limitReached, type CompanyPlan } from '../../lib/packages'
 import type { Profile, UserRole } from '../../lib/types'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
@@ -27,6 +28,7 @@ const roleLabels: Record<UserRole, string> = {
 export function CompanyUsersPage() {
   const { profile } = useAuth()
   const [users, setUsers] = useState<Profile[]>([])
+  const [plan, setPlan] = useState<CompanyPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -77,8 +79,17 @@ export function CompanyUsersPage() {
     setLoading(false)
   }
 
+  const loadPlan = async () => {
+    try {
+      setPlan(await fetchCompanyPlan())
+    } catch {
+      setPlan(null)
+    }
+  }
+
   useEffect(() => {
     loadUsers()
+    void loadPlan()
   }, [profile?.company_id])
 
   const handleDelete = async (user: Profile) => {
@@ -99,6 +110,7 @@ export function CompanyUsersPage() {
       await deleteUser(user.id)
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
       setSuccess(`${user.full_name || user.email} deleted.`)
+      await loadPlan()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user')
     } finally {
@@ -125,13 +137,17 @@ export function CompanyUsersPage() {
       setEmail('')
       setFullName('')
       setRole('company_user')
-      await loadUsers()
+      await Promise.all([loadUsers(), loadPlan()])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to invite user')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const userLimit = plan?.package?.max_users
+  const userCount = plan?.usage.users ?? users.length
+  const teamFull = limitReached(userCount, userLimit)
 
   if (!isAdmin) {
     return (
@@ -155,6 +171,19 @@ export function CompanyUsersPage() {
         <p className="mt-1 text-sm text-soil-500">
           They’ll receive an email with a link to set up their password.
         </p>
+        {plan?.package && (
+          <p className="mt-1 text-sm text-soil-500">
+            {userLimit == null
+              ? `${userCount} team members on the ${plan.package.name} package.`
+              : `${userCount} of ${userLimit} team members used on the ${plan.package.name} package.`}
+          </p>
+        )}
+        {teamFull && (
+          <p className="mt-2 text-sm text-barn-800">
+            The {plan?.package?.name ?? 'current'} package limit for team members is {userLimit}. Ask a super
+            admin to change the package if you need a higher limit.
+          </p>
+        )}
         <form onSubmit={handleCreate} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -168,7 +197,7 @@ export function CompanyUsersPage() {
             <option value="company_user">Company User</option>
           </Select>
           <div className="md:col-span-2">
-            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting || teamFull}>
               {submitting ? 'Sending invite...' : 'Send invite'}
             </Button>
           </div>

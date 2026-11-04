@@ -16,6 +16,7 @@ alwaysApply: false
 - Locations → encampments hierarchy; animals link via `encampment_id`. Farm admins manage locations/encampments; all farm users can read and assign animals
 - Animal inoculations: `animal_inoculations` (kind vaccination or treatment; vaccinations use `name`; treatments use `condition` + `medication`, with `name` set to the medication; optional next_due_at / batch / dosage). Option lists live in `health_options` (`vaccination`, `condition`, `medication`)
 - Demo tools (superadmin RPCs): `seed_farm_demo_data`, `clear_farm_demo_data`, `reset_farm_data` — livestock/locations only; `is_demo` flag marks seeded rows
+- Packages: `packages` plus `companies.package_id`. `enforce_package_quota` blocks inserts over the cap for team members, animals, locations, camps, photos, documents, and backups. Null limit means unlimited. Superadmin inserts bypass the cap. `company_plan_usage()` returns the caller’s package and counts
 
 ## Auth & profiles
 

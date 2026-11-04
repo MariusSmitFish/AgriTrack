@@ -10,6 +10,37 @@ export interface Company {
   name: string
   slug: string
   stud_number: string | null
+  package_id: string | null
+  created_at: string
+  updated_at: string
+  packages?: Pick<Package, 'id' | 'name' | 'slug'> | null
+}
+
+export type PackageLimitKey =
+  | 'max_users'
+  | 'max_animals'
+  | 'max_locations'
+  | 'max_encampments'
+  | 'max_photos'
+  | 'max_documents'
+  | 'max_backups'
+
+export interface Package {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  sort_order: number
+  yearly_price: number | string
+  currency: string
+  max_users: number | null
+  max_animals: number | null
+  max_locations: number | null
+  max_encampments: number | null
+  max_photos: number | null
+  max_documents: number | null
+  max_backups: number | null
+  is_active: boolean
   created_at: string
   updated_at: string
 }

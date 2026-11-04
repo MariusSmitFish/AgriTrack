@@ -43,6 +43,7 @@ export function SuperAdminDashboardPage() {
         <h3 className="font-display font-semibold text-pasture-900">Quick actions</h3>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
           <ActionLink to="/superadmin/companies">Manage farms</ActionLink>
+          <ActionLink to="/superadmin/packages">Manage packages</ActionLink>
           <ActionLink to="/superadmin/users">Manage users</ActionLink>
         </div>
       </Card>

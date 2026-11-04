@@ -89,12 +89,50 @@ Deno.serve(async (req) => {
 
     let farmName = ''
     if (resolvedCompanyId) {
-      const { data: company } = await supabaseAdmin
+      const { data: company, error: companyError } = await supabaseAdmin
         .from('companies')
-        .select('name')
+        .select('name, packages(name, max_users)')
         .eq('id', resolvedCompanyId)
         .maybeSingle()
-      farmName = company?.name?.trim() ?? ''
+
+      if (companyError) {
+        const { data: fallback, error: fallbackError } = await supabaseAdmin
+          .from('companies')
+          .select('name')
+          .eq('id', resolvedCompanyId)
+          .maybeSingle()
+
+        if (fallbackError) {
+          return jsonResponse({ error: fallbackError.message }, 400)
+        }
+        farmName = fallback?.name?.trim() ?? ''
+      } else {
+        farmName = company?.name?.trim() ?? ''
+
+        const nested = company?.packages as
+          | { name: string; max_users: number | null }
+          | { name: string; max_users: number | null }[]
+          | null
+          | undefined
+        const plan = Array.isArray(nested) ? nested[0] : nested
+
+        if (plan && plan.max_users != null) {
+          const { count, error: countError } = await supabaseAdmin
+            .from('profiles')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', resolvedCompanyId)
+
+          if (countError) {
+            return jsonResponse({ error: countError.message }, 400)
+          }
+
+          if ((count ?? 0) >= plan.max_users) {
+            return jsonResponse({
+              error: `Your ${plan.name} package limit for team members is ${plan.max_users}. Ask a super admin to change the package if you need a higher limit.`,
+            }, 403)
+          }
+        }
+      }
     }
 
     const invitedBy =
