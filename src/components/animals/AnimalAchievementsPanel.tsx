@@ -12,7 +12,7 @@ import { formatInoculationDate } from '../../lib/inoculations'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
@@ -81,7 +81,7 @@ export function AnimalAchievementsPanel({
         ),
       )
     } catch (err) {
-      setError(errorText(err, 'Failed to load show results'))
+      setError(friendlyError(err, 'Failed to load show results'))
     } finally {
       setLoading(false)
     }
@@ -146,7 +146,7 @@ export function AnimalAchievementsPanel({
       }
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save show result')
+      setError(friendlyError(err, 'Failed to save show result'))
     } finally {
       setSubmitting(false)
     }
@@ -166,7 +166,7 @@ export function AnimalAchievementsPanel({
       if (editingId === record.id) resetForm()
       setSuccess('Show result deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete show result')
+      setError(friendlyError(err, 'Failed to delete show result'))
     }
   }
 

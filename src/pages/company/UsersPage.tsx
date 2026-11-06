@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from '
 import { createUser, deleteUser, supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { fetchCompanyPlan, limitReached, type CompanyPlan } from '../../lib/packages'
+import { friendlyError } from '../../lib/userError'
 import type { Profile, UserRole } from '../../lib/types'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
@@ -73,7 +74,7 @@ export function CompanyUsersPage() {
       .eq('company_id', profile.company_id)
       .order('created_at', { ascending: false })
 
-    if (fetchError) setError(fetchError.message)
+    if (fetchError) setError(friendlyError(fetchError, 'Could not load the team.'))
     else setUsers(data ?? [])
 
     setLoading(false)
@@ -112,7 +113,7 @@ export function CompanyUsersPage() {
       setSuccess(`${user.full_name || user.email} deleted.`)
       await loadPlan()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user')
+      setError(friendlyError(err, 'Failed to delete user'))
     } finally {
       setDeletingId(null)
     }
@@ -139,7 +140,7 @@ export function CompanyUsersPage() {
       setRole('company_user')
       await Promise.all([loadUsers(), loadPlan()])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to invite user')
+      setError(friendlyError(err, 'Failed to invite user'))
     } finally {
       setSubmitting(false)
     }

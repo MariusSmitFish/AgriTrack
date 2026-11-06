@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { cameraErrorMessage, requestTagCamera } from '../../lib/tagCamera'
+import { friendlyError } from '../../lib/userError'
 import { preloadTagReader, scanTagFromImage, scanTagFromVideo, TAG_FRAME } from '../../lib/tagOcr'
 import { Button } from './Button'
 import { Input } from './Input'
@@ -137,7 +138,7 @@ export function TagScanDialog({
       applyReading(result)
     } catch (error) {
       if (!cancelled.current) {
-        setOcrError(error instanceof Error ? error.message : 'Could not read the tag. Enter the number manually.')
+        setOcrError(friendlyError(error, 'Could not read the tag. Enter the number manually.'))
       }
     } finally {
       if (!cancelled.current) setScanning(false)

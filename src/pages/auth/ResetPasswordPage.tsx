@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
 import { Logo } from '../../components/ui/Logo'
+import { friendlyError } from '../../lib/userError'
 
 export function ResetPasswordPage() {
   const {
@@ -54,11 +55,7 @@ export function ResetPasswordPage() {
       clearPasswordRecovery()
       navigate('/', { replace: true })
     } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
-          ? err.message
-          : 'Could not update password'
-      setError(message)
+      setError(friendlyError(err, 'Could not update the password. Try again.'))
     } finally {
       setSubmitting(false)
     }

@@ -13,6 +13,7 @@ import {
   usedIdNumbers,
 } from '../../lib/births'
 import { fetchCompanyStudNumber } from '../../lib/companySettings'
+import { friendlyError } from '../../lib/userError'
 import { formatInoculationDate, todayDateValue } from '../../lib/inoculations'
 import { bornOutcomeLabel, offspringNoun } from '../../lib/speciesTerms'
 import { ParentPicker } from '../../components/animals/ParentPicker'
@@ -64,7 +65,7 @@ export function CaptureBirthPage() {
       setEvents(breedingData)
       setCompanyStud(stud)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load herd')
+      setError(friendlyError(err, 'Failed to load herd'))
     } finally {
       setLoading(false)
     }
@@ -203,7 +204,7 @@ export function CaptureBirthPage() {
       setBreedingEventId('')
       await load(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to record the birth')
+      setError(friendlyError(err, 'Failed to record the birth'))
     } finally {
       setSubmitting(false)
     }

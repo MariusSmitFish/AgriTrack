@@ -18,6 +18,7 @@ import { SearchField } from '../ui/SearchField'
 import { Pagination } from '../ui/Pagination'
 import { EmptyState } from '../layout/AppShell'
 import { useOfflineRead } from '../../contexts/OfflineContext'
+import { friendlyError } from '../../lib/userError'
 
 interface AnimalPhotosPanelProps {
   animalId: string
@@ -70,7 +71,7 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
     try {
       setPhotos(await fetchAnimalPhotos(animalId))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load photos')
+      setError(friendlyError(err, 'Failed to load photos'))
     } finally {
       setLoading(false)
     }
@@ -157,7 +158,7 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
       clearDraft()
       setSuccess('Photo added.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload photo')
+      setError(friendlyError(err, 'Failed to upload photo'))
     } finally {
       setUploading(false)
     }
@@ -192,7 +193,7 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
         setViewerPhoto((current) => (current ? { ...current, captured_at: iso } : current))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update date')
+      setError(friendlyError(err, 'Failed to update date'))
     } finally {
       setSavingDate(false)
     }
@@ -209,7 +210,7 @@ export function AnimalPhotosPanel({ animalId, companyId, userId }: AnimalPhotosP
       if (viewerPhoto?.id === photo.id) setViewerPhoto(null)
       setSuccess('Photo deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete photo')
+      setError(friendlyError(err, 'Failed to delete photo'))
     }
   }
 

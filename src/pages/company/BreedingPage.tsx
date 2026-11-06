@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import type { Animal, BreedingEvent, BreedingEventFormData } from '../../lib/types'
 import { animalLabel, animalOptionLabel, formatAnimalSex } from '../../lib/animals'
 import { formatInoculationDate, todayDateValue } from '../../lib/inoculations'
@@ -92,7 +92,7 @@ export function BreedingPage() {
         setAnimals(data.animals)
         setEvents(data.events)
       } catch (err) {
-        if (!cancelled) setError(errorText(err, 'Failed to load breeding data'))
+        if (!cancelled) setError(friendlyError(err, 'Failed to load breeding data'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -229,7 +229,7 @@ export function BreedingPage() {
       }
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save breeding event')
+      setError(friendlyError(err, 'Failed to save breeding event'))
     } finally {
       setSubmitting(false)
     }
@@ -254,7 +254,7 @@ export function BreedingPage() {
       if (editingId === event.id) resetForm()
       setSuccess('Breeding event deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      setError(friendlyError(err, 'Failed to delete'))
     }
   }
 

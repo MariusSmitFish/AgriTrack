@@ -25,18 +25,18 @@ async function readFunctionError(error: unknown): Promise<string> {
     } catch {
       // response body not json
     }
-    return `Server error (${error.context.status}): ${error.message}`
+    return 'Something went wrong. Try again.'
   }
 
   if (error instanceof FunctionsRelayError) {
-    return 'Could not reach the Edge Function. Deploy with: npx supabase functions deploy'
+    return 'Could not reach the server. Check your connection and try again.'
   }
 
   if (error instanceof Error) {
     return error.message
   }
 
-  return 'Request failed'
+  return 'Something went wrong. Try again.'
 }
 
 async function invokeAuthedFunction(name: string, body: Record<string, unknown>) {

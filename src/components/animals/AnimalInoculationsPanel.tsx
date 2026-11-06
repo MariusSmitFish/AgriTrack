@@ -16,7 +16,7 @@ import { fetchHealthOptions } from '../../lib/healthOptions'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
@@ -76,7 +76,7 @@ export function AnimalInoculationsPanel({
         medication: data.options.filter((option) => option.kind === 'medication').map((option) => option.name),
       })
     } catch (err) {
-      setError(errorText(err, 'Failed to load health records'))
+      setError(friendlyError(err, 'Failed to load health records'))
     } finally {
       setLoading(false)
     }
@@ -276,7 +276,7 @@ function HealthSection({
       resetForm()
       await onReload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to save ${noun}`)
+      setError(friendlyError(err, `Failed to save ${noun}`))
     } finally {
       setSubmitting(false)
     }
@@ -297,7 +297,7 @@ function HealthSection({
       setSuccess(`${itemLabel} deleted.`)
       await onReload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to delete ${noun}`)
+      setError(friendlyError(err, `Failed to delete ${noun}`))
     }
   }
 

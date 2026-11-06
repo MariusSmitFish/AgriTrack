@@ -13,6 +13,7 @@ import {
 import { formatInoculationDate } from '../../lib/inoculations'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
@@ -73,7 +74,7 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
     try {
       setDocuments(await fetchAnimalDocuments(animalId))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documents')
+      setError(friendlyError(err, 'Failed to load documents'))
     } finally {
       setLoading(false)
     }
@@ -116,7 +117,7 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
     } catch (err) {
       setSelectedFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
-      setError(err instanceof Error ? err.message : 'That file is not supported')
+      setError(friendlyError(err, 'That file is not supported'))
     }
   }
 
@@ -167,7 +168,7 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
       }
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save document')
+      setError(friendlyError(err, 'Failed to save document'))
     } finally {
       setSubmitting(false)
     }
@@ -183,7 +184,7 @@ export function AnimalDocumentsPanel({ animalId, companyId, userId }: AnimalDocu
       if (editingId === document.id) resetForm()
       setSuccess('Document deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete document')
+      setError(friendlyError(err, 'Failed to delete document'))
     }
   }
 

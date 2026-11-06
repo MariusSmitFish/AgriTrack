@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import type { Animal, AnimalStatus } from '../../lib/types'
 import {
   animalLabel,
@@ -228,7 +228,7 @@ export function AnimalsPage() {
         )
         if (!cancelled) setAnimals(data)
       } catch (err) {
-        if (!cancelled) setError(errorText(err, 'Failed to load animals'))
+        if (!cancelled) setError(friendlyError(err, 'Failed to load animals'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -421,7 +421,7 @@ export function AnimalsPage() {
       setAnimals((prev) => prev.filter((a) => a.id !== animal.id))
       setSuccess(`${label} deleted.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete animal')
+      setError(friendlyError(err, 'Failed to delete animal'))
     } finally {
       setDeletingId(null)
     }

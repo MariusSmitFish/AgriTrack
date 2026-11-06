@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from '
 import { createUser, deleteUser, supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import type { Company, Profile, UserRole } from '../../lib/types'
+import { friendlyError } from '../../lib/userError'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import { Button } from '../../components/ui/Button'
@@ -69,10 +70,10 @@ export function SuperAdminUsersPage() {
       supabase.from('companies').select('*').order('name'),
     ])
 
-    if (usersRes.error) setError(usersRes.error.message)
+    if (usersRes.error) setError(friendlyError(usersRes.error, 'Could not load users.'))
     else setUsers(usersRes.data ?? [])
 
-    if (companiesRes.error) setError(companiesRes.error.message)
+    if (companiesRes.error) setError(friendlyError(companiesRes.error, 'Could not load farms.'))
     else setCompanies(companiesRes.data ?? [])
 
     setLoading(false)
@@ -101,7 +102,7 @@ export function SuperAdminUsersPage() {
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
       setSuccess(`${user.full_name || user.email} deleted.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete user')
+      setError(friendlyError(err, 'Failed to delete user'))
     } finally {
       setDeletingId(null)
     }
@@ -127,7 +128,7 @@ export function SuperAdminUsersPage() {
       setCompanyId('')
       await loadData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to invite user')
+      setError(friendlyError(err, 'Failed to invite user'))
     } finally {
       setSubmitting(false)
     }

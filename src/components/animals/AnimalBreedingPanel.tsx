@@ -19,7 +19,7 @@ import {
 } from '../../lib/speciesTerms'
 import { Button } from '../ui/Button'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Card } from '../ui/Card'
@@ -96,7 +96,7 @@ export function AnimalBreedingPanel({
         ),
       )
     } catch (err) {
-      setError(errorText(err, 'Failed to load breeding events'))
+      setError(friendlyError(err, 'Failed to load breeding events'))
     } finally {
       setLoading(false)
     }
@@ -150,7 +150,7 @@ export function AnimalBreedingPanel({
       )
       setSuccess('Breeding event recorded.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(friendlyError(err, 'Failed to save'))
     } finally {
       setSubmitting(false)
     }
@@ -166,7 +166,7 @@ export function AnimalBreedingPanel({
       await deleteBreedingEvent(event.id)
       setEvents((prev) => prev.filter((e) => e.id !== event.id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      setError(friendlyError(err, 'Failed to delete'))
     }
   }
 

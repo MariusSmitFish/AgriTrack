@@ -12,11 +12,26 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   })
 }
 
+const ROLES = ['superadmin', 'company_admin', 'company_user'] as const
+
 function roleLabel(role: string) {
   if (role === 'superadmin') return 'Super Admin'
   if (role === 'company_admin') return 'Farm Admin'
   if (role === 'company_user') return 'Farm User'
-  return role
+  return 'Farm User'
+}
+
+function inviteRedirect(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  try {
+    const url = new URL(value)
+    const allowedProtocol = url.protocol === 'https:' || url.protocol === 'http:'
+    if (!allowedProtocol || url.username || url.password || url.search || url.hash) return undefined
+    if (url.pathname !== '/reset-password') return undefined
+    return `${url.origin}${url.pathname}`
+  } catch {
+    return undefined
+  }
 }
 
 Deno.serve(async (req) => {
@@ -29,26 +44,24 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return jsonResponse({ error: 'Function misconfigured: missing Supabase env vars' }, 500)
+      return jsonResponse({ error: 'Something went wrong. Try again later.' }, 500)
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization' }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const token = authHeader.replace(/^Bearer\s+/i, '').trim()
     if (!token) {
-      return jsonResponse({ error: 'Missing authorization token' }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !caller) {
-      return jsonResponse({
-        error: authError?.message ?? 'Unauthorized — sign out and sign in again',
-      }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
@@ -58,17 +71,34 @@ Deno.serve(async (req) => {
       .single()
 
     if (callerProfileError || !callerProfile) {
-      return jsonResponse({ error: 'Caller profile not found' }, 403)
+      return jsonResponse({ error: 'Your account could not be loaded. Sign in again.' }, 403)
     }
 
     if (!['superadmin', 'company_admin'].includes(callerProfile.role)) {
-      return jsonResponse({ error: 'Forbidden: admin role required' }, 403)
+      return jsonResponse({ error: 'You do not have permission to do that.' }, 403)
     }
 
-    const { email, full_name, role, company_id, redirect_to } = await req.json()
+    const body = await req.json()
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const full_name = typeof body.full_name === 'string' ? body.full_name.trim() : ''
+    const role = body.role
+    const company_id = typeof body.company_id === 'string' ? body.company_id : ''
+    const redirectTo = inviteRedirect(body.redirect_to)
 
-    if (!email || !role) {
-      return jsonResponse({ error: 'email and role are required' }, 400)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 320) {
+      return jsonResponse({ error: 'Enter a valid email address.' }, 400)
+    }
+
+    if (full_name.length > 120) {
+      return jsonResponse({ error: 'Name is too long.' }, 400)
+    }
+
+    if (!ROLES.includes(role)) {
+      return jsonResponse({ error: 'Choose a valid role.' }, 400)
+    }
+
+    if (role !== 'superadmin' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(company_id)) {
+      return jsonResponse({ error: 'Choose a farm for this user.' }, 400)
     }
 
     if (callerProfile.role === 'company_admin') {
@@ -77,15 +107,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (role !== 'superadmin' && !company_id) {
-      return jsonResponse({ error: 'company_id required for non-superadmin users' }, 400)
-    }
-
     const resolvedCompanyId = role === 'superadmin' ? null : company_id
-    const redirectTo =
-      typeof redirect_to === 'string' && redirect_to.startsWith('http')
-        ? redirect_to
-        : undefined
 
     let farmName = ''
     if (resolvedCompanyId) {
@@ -103,9 +125,14 @@ Deno.serve(async (req) => {
           .maybeSingle()
 
         if (fallbackError) {
-          return jsonResponse({ error: fallbackError.message }, 400)
+          return jsonResponse({ error: 'Could not load the farm. Try again.' }, 400)
         }
         farmName = fallback?.name?.trim() ?? ''
+        if (!farmName && !fallback) {
+          return jsonResponse({ error: 'Choose a farm for this user.' }, 400)
+        }
+      } else if (!company) {
+        return jsonResponse({ error: 'Choose a farm for this user.' }, 400)
       } else {
         farmName = company?.name?.trim() ?? ''
 
@@ -123,7 +150,7 @@ Deno.serve(async (req) => {
             .eq('company_id', resolvedCompanyId)
 
           if (countError) {
-            return jsonResponse({ error: countError.message }, 400)
+            return jsonResponse({ error: 'Could not check the team size. Try again.' }, 400)
           }
 
           if ((count ?? 0) >= plan.max_users) {
@@ -179,11 +206,11 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(invited.user.id)
-      return jsonResponse({ error: `Profile error: ${profileError.message}` }, 400)
+      return jsonResponse({ error: 'The invitation could not be finished. Try again.' }, 400)
     }
 
     return jsonResponse({ user: invited.user })
   } catch (err) {
-    return jsonResponse({ error: (err as Error).message }, 500)
+    return jsonResponse({ error: 'Something went wrong. Try again.' }, 500)
   }
 })

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { fetchFarmSnapshot } from '../../lib/farmSnapshot'
 import {
   analyticsYears,
@@ -129,7 +129,7 @@ export function AnalyticsPage() {
         )
         if (!cancelled) setInput(data)
       } catch (err) {
-        if (!cancelled) setError(errorText(err, 'Failed to load analytics'))
+        if (!cancelled) setError(friendlyError(err, 'Failed to load analytics'))
       } finally {
         if (!cancelled) setLoading(false)
       }

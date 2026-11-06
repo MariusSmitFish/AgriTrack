@@ -22,26 +22,24 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return jsonResponse({ error: 'Function misconfigured: missing Supabase env vars' }, 500)
+      return jsonResponse({ error: 'Something went wrong. Try again later.' }, 500)
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization' }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const token = authHeader.replace(/^Bearer\s+/i, '').trim()
     if (!token) {
-      return jsonResponse({ error: 'Missing authorization token' }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
     if (authError || !caller) {
-      return jsonResponse({
-        error: authError?.message ?? 'Unauthorized — sign out and sign in again',
-      }, 401)
+      return jsonResponse({ error: 'Your session has expired. Sign in again.' }, 401)
     }
 
     const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
@@ -51,16 +49,17 @@ Deno.serve(async (req) => {
       .single()
 
     if (callerProfileError || !callerProfile) {
-      return jsonResponse({ error: 'Caller profile not found' }, 403)
+      return jsonResponse({ error: 'Your account could not be loaded. Sign in again.' }, 403)
     }
 
     if (!['superadmin', 'company_admin'].includes(callerProfile.role)) {
-      return jsonResponse({ error: 'Forbidden: admin role required' }, 403)
+      return jsonResponse({ error: 'You do not have permission to do that.' }, 403)
     }
 
-    const { user_id } = await req.json()
-    if (!user_id || typeof user_id !== 'string') {
-      return jsonResponse({ error: 'user_id is required' }, 400)
+    const body = await req.json()
+    const user_id = typeof body.user_id === 'string' ? body.user_id : ''
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user_id)) {
+      return jsonResponse({ error: 'Choose a person to remove.' }, 400)
     }
 
     if (user_id === caller.id) {
@@ -74,7 +73,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (targetError || !targetProfile) {
-      return jsonResponse({ error: 'User not found' }, 404)
+      return jsonResponse({ error: 'That person could not be found.' }, 404)
     }
 
     if (callerProfile.role === 'company_admin') {
@@ -88,11 +87,11 @@ Deno.serve(async (req) => {
 
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
     if (deleteError) {
-      return jsonResponse({ error: deleteError.message }, 400)
+      return jsonResponse({ error: 'Could not remove that person. Try again.' }, 400)
     }
 
     return jsonResponse({ ok: true, deleted_user_id: user_id })
   } catch (err) {
-    return jsonResponse({ error: (err as Error).message }, 500)
+    return jsonResponse({ error: 'Something went wrong. Try again.' }, 500)
   }
 })

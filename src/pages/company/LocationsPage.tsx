@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from '
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import type { Encampment, FarmLocation } from '../../lib/types'
 import { encampmentLabel, locationLabel } from '../../lib/locations'
 import { filterBySearch } from '../../lib/search'
@@ -97,7 +97,7 @@ export function LocationsPage() {
         setSelectedLocationId(data.locations[0].id)
       }
     } catch (err) {
-      setError(errorText(err, 'Failed to load locations'))
+      setError(friendlyError(err, 'Failed to load locations'))
     } finally {
       setLoading(false)
     }
@@ -209,7 +209,7 @@ export function LocationsPage() {
       : await supabase.from('locations').insert(payload).select('id').single()
 
     if (result.error) {
-      setError(result.error.message)
+      setError(friendlyError(result.error, 'Could not save the location.'))
     } else {
       if (!editingLocationId && result.data && 'id' in result.data) {
         setSelectedLocationId(result.data.id as string)
@@ -240,7 +240,7 @@ export function LocationsPage() {
     setSuccess('')
     const { error: deleteError } = await supabase.from('locations').delete().eq('id', location.id)
     if (deleteError) {
-      setError(deleteError.message)
+      setError(friendlyError(deleteError, 'Could not delete the location.'))
       return
     }
 
@@ -274,7 +274,7 @@ export function LocationsPage() {
       : await supabase.from('encampments').insert(payload)
 
     if (result.error) {
-      setError(result.error.message)
+      setError(friendlyError(result.error, 'Could not save the camp.'))
     } else {
       setSuccess(editingCampId ? 'Camp updated.' : 'Camp added.')
       resetCampForm()
@@ -302,7 +302,7 @@ export function LocationsPage() {
     setSuccess('')
     const { error: deleteError } = await supabase.from('encampments').delete().eq('id', camp.id)
     if (deleteError) {
-      setError(deleteError.message)
+      setError(friendlyError(deleteError, 'Could not delete the camp.'))
       return
     }
 

@@ -7,6 +7,7 @@ import {
   type StambookImportResult,
   type StambookImportRow,
 } from '../../lib/stambookImport'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 
@@ -74,7 +75,7 @@ export function StamboekImportPanel({ onImported }: { onImported?: () => void })
         setRows(parsed)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read that CSV file.')
+      setError(friendlyError(err, 'Could not read that CSV file.'))
     } finally {
       setLoading(false)
     }
@@ -113,7 +114,7 @@ export function StamboekImportPanel({ onImported }: { onImported?: () => void })
         setFileName('')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed')
+      setError(friendlyError(err, 'Import failed. Try the file again.'))
     } finally {
       setImporting(false)
     }

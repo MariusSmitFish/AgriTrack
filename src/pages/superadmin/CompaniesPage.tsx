@@ -8,6 +8,7 @@ import {
   resetFarmData,
   seedFarmDemoData,
 } from '../../lib/farmDemo'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
@@ -79,13 +80,13 @@ export function SuperAdminCompaniesPage() {
     ])
 
     if (companiesRes.error) {
-      setError(companiesRes.error.message)
+      setError(friendlyError(companiesRes.error, 'Could not load farms.'))
     } else {
       setCompanies(companiesRes.data ?? [])
     }
 
     if (packagesRes.error) {
-      setError(packagesRes.error.message)
+      setError(friendlyError(packagesRes.error, 'Could not load packages.'))
     } else {
       const nextPackages = (packagesRes.data ?? []) as Package[]
       setPackages(nextPackages)
@@ -115,7 +116,7 @@ export function SuperAdminCompaniesPage() {
     })
 
     if (insertError) {
-      setError(insertError.message)
+      setError(friendlyError(insertError, 'Could not create the farm.'))
     } else {
       setName('')
       setSuccess('Farm created.')
@@ -131,7 +132,7 @@ export function SuperAdminCompaniesPage() {
     setSuccess('')
     const { error: deleteError } = await supabase.from('companies').delete().eq('id', company.id)
     if (deleteError) {
-      setError(deleteError.message)
+      setError(friendlyError(deleteError, 'Could not delete the farm.'))
     } else {
       setSuccess(`Farm "${company.name}" deleted.`)
       await loadCompanies()
@@ -157,7 +158,7 @@ export function SuperAdminCompaniesPage() {
         `Demo data seeded on ${company.name}: ${result.animals} animals, ${result.locations} locations, ${result.encampments} camps, ${result.inoculations} inoculations.`,
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to seed demo data')
+      setError(friendlyError(err, 'Failed to seed demo data'))
     } finally {
       setBusyId(null)
     }
@@ -182,7 +183,7 @@ export function SuperAdminCompaniesPage() {
         `Demo data cleared on ${company.name}: ${result.deleted_animals} animals, ${result.deleted_locations} locations removed.`,
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear demo data')
+      setError(friendlyError(err, 'Failed to clear demo data'))
     } finally {
       setBusyId(null)
     }
@@ -207,7 +208,7 @@ export function SuperAdminCompaniesPage() {
         `Farm reset for ${company.name}: removed ${result.deleted_animals} animals, ${result.deleted_locations} locations, ${result.deleted_encampments} camps.`,
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset farm')
+      setError(friendlyError(err, 'Failed to reset farm'))
     } finally {
       setBusyId(null)
     }
@@ -226,7 +227,7 @@ export function SuperAdminCompaniesPage() {
       .eq('id', company.id)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(friendlyError(updateError, 'Could not update the package.'))
     } else {
       const next = packages.find((pkg) => pkg.id === nextPackageId) ?? null
       setCompanies((current) =>

@@ -4,6 +4,7 @@ import type { HealthOption, HealthOptionKind } from '../../lib/types'
 import { createHealthOption, deleteHealthOption, fetchHealthOptions } from '../../lib/healthOptions'
 import { fetchCompanyStudNumber, updateCompanyStudNumber } from '../../lib/companySettings'
 import { digitsOnly, padDigits } from '../../lib/animals'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
@@ -25,13 +26,13 @@ export function ConfigurationsPage() {
       setOptions(await fetchHealthOptions(profile.company_id))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load configurations')
+      setError(friendlyError(err, 'Failed to load configurations'))
     }
 
     try {
       setStudNumber(await fetchCompanyStudNumber(profile.company_id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load the stud number')
+      setError(friendlyError(err, 'Failed to load the stud number'))
     } finally {
       setLoading(false)
     }
@@ -48,7 +49,7 @@ export function ConfigurationsPage() {
       setStudNumber(saved)
       setSuccess(saved ? 'Stud number saved.' : 'Stud number cleared.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save stud number')
+      setError(friendlyError(err, 'Failed to save stud number'))
     } finally {
       setSavingStud(false)
     }
@@ -188,11 +189,11 @@ function OptionList({
       onMessage(`${itemLabel} added.`)
       await onChanged()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to add option'
+      const raw = err instanceof Error ? err.message : ''
       onError(
-        message.toLowerCase().includes('duplicate') || message.toLowerCase().includes('unique')
+        /duplicate|unique/i.test(raw)
           ? `That ${label} is already in the list.`
-          : message,
+          : friendlyError(err, 'Failed to add option'),
       )
     } finally {
       setSaving(false)
@@ -210,7 +211,7 @@ function OptionList({
       onMessage(`${option.name} removed.`)
       await onChanged()
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Failed to remove option')
+      onError(friendlyError(err, 'Failed to remove option'))
     }
   }
 

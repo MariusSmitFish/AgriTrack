@@ -11,6 +11,7 @@ import {
   parseOptionalLimit,
 } from '../../lib/packages'
 import type { Package, PackageLimitKey } from '../../lib/types'
+import { friendlyError } from '../../lib/userError'
 
 interface PackageDraft {
   name: string
@@ -51,7 +52,7 @@ export function SuperAdminPackagesPage() {
       setDrafts(Object.fromEntries(next.map((pkg) => [pkg.id, toDraft(pkg)])))
       setError('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load packages')
+      setError(friendlyError(err, 'Failed to load packages'))
     } finally {
       setLoading(false)
     }
@@ -117,7 +118,7 @@ export function SuperAdminPackagesPage() {
       setSuccess(`${name} saved. Farms on this package use the new limits immediately.`)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save package')
+      setError(friendlyError(err, 'Failed to save package'))
     } finally {
       setSavingId(null)
     }

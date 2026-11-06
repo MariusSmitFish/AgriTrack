@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { deleteAnimal } from '../../lib/animals'
 import { birthExportRows } from '../../lib/births'
 import { exportCsv } from '../../lib/exportCsv'
@@ -56,7 +56,7 @@ export function StamboekPage() {
       setCount(total)
       setError('')
     } catch (err) {
-      setError(errorText(err, 'Failed to load stamboek animals'))
+      setError(friendlyError(err, 'Failed to load stamboek animals'))
     } finally {
       setLoadingCount(false)
     }
@@ -88,7 +88,7 @@ export function StamboekPage() {
       .eq('status', 'stamboek')
 
     if (fetchError) {
-      setError(fetchError.message)
+      setError(friendlyError(fetchError, 'Could not load stamboek animals.'))
       setDeleting(false)
       return
     }
@@ -101,7 +101,7 @@ export function StamboekPage() {
       setSuccess(`Deleted ${removed} stamboek ${removed === 1 ? 'animal' : 'animals'}.`)
       setCount(0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete stamboek animals')
+      setError(friendlyError(err, 'Failed to delete stamboek animals'))
       await loadCount()
     } finally {
       setDeleting(false)
@@ -132,7 +132,7 @@ export function StamboekPage() {
       exportCsv(`births-${fromDate}-to-${toDate}.csv`, ['Animal ID', 'Mother ID', 'Father ID', 'DoB'], rows)
       setExportSuccess(`Exported ${rows.length} ${rows.length === 1 ? 'birth' : 'births'}.`)
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Failed to export births')
+      setExportError(friendlyError(err, 'Failed to export births'))
     } finally {
       setExporting(false)
     }

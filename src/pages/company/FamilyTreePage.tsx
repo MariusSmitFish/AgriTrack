@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import type { Animal } from '../../lib/types'
 import { animalLabel, buildPedigreeTree } from '../../lib/animals'
 import { fetchOtherFarmRelatives, type OtherFarmRelative } from '../../lib/otherFarmFamily'
@@ -46,7 +46,7 @@ export function FamilyTreePage() {
         )
         if (!cancelled) setAnimals(data)
       } catch (err) {
-        if (!cancelled) setError(errorText(err, 'Failed to load animals'))
+        if (!cancelled) setError(friendlyError(err, 'Failed to load animals'))
       } finally {
         if (!cancelled) setLoading(false)
       }

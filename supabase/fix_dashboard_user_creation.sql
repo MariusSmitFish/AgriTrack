@@ -7,7 +7,7 @@
 alter table public.profiles
   drop constraint if exists profiles_company_required;
 
--- Update trigger to read role/company from user metadata
+-- Role comes from app metadata only. User metadata is writable at signup.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -18,12 +18,26 @@ declare
   assigned_role public.user_role;
   assigned_company_id uuid;
 begin
-  assigned_role := coalesce(
-    (new.raw_user_meta_data ->> 'role')::public.user_role,
-    'company_user'
-  );
+  begin
+    assigned_role := coalesce(
+      nullif(new.raw_app_meta_data ->> 'role', '')::public.user_role,
+      'company_user'
+    );
+  exception
+    when invalid_text_representation then
+      assigned_role := 'company_user';
+  end;
 
-  assigned_company_id := nullif(new.raw_user_meta_data ->> 'company_id', '')::uuid;
+  if assigned_role not in ('superadmin', 'company_admin', 'company_user') then
+    assigned_role := 'company_user';
+  end if;
+
+  begin
+    assigned_company_id := nullif(new.raw_app_meta_data ->> 'company_id', '')::uuid;
+  exception
+    when invalid_text_representation then
+      assigned_company_id := null;
+  end;
 
   if assigned_role = 'superadmin' then
     assigned_company_id := null;

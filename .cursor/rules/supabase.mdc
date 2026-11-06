@@ -23,12 +23,13 @@ alwaysApply: false
 - `profiles` extends `auth.users`; auto-created by `handle_new_user` trigger
 - Superadmin: `role = 'superadmin'`, `company_id = null`
 - Company users: require `company_id`; roles `company_admin` or `company_user`
-- Create users via Dashboard (with metadata) or `create-user` Edge Function — not raw SQL unless identity row is included
+- Create users via the `create-user` Edge Function. A Dashboard user does not become an admin from User Metadata
+- `handle_new_user` assigns a role only from `app_metadata`. Signup `user_metadata` cannot grant a role
 
-## User metadata for Dashboard creation
+## App metadata for a Dashboard superadmin
 
 ```json
-{"full_name":"Name","role":"superadmin"}
+{"role":"superadmin"}
 ```
 
 ## Edge Functions

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Animal } from './types'
+import { friendlyError } from './userError'
 
 export interface StambookImportRow {
   animalNumber: string
@@ -323,7 +324,7 @@ export async function importStambookAnimals(
     .eq('company_id', companyId)
   
   if (fetchError) {
-    result.errors.push(`Failed to fetch existing animals: ${fetchError.message}`)
+    result.errors.push(friendlyError(fetchError, 'Could not load the animals already on this farm.'))
     return result
   }
   
@@ -399,7 +400,7 @@ export async function importStambookAnimals(
       .select('id, stud_number, id_year, id_number, tag_number')
     
     if (insertError) {
-      result.errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${insertError.message}`)
+      result.errors.push(friendlyError(insertError, 'Some animals in that group could not be saved.'))
       continue
     }
     
@@ -479,7 +480,7 @@ export async function importStambookAnimals(
       .select('id')
 
     if (insertError) {
-      result.errors.push(`Parents batch ${Math.floor(i / batchSize) + 1}: ${insertError.message}`)
+      result.errors.push(friendlyError(insertError, 'Some parents could not be saved.'))
       continue
     }
 
@@ -618,7 +619,9 @@ export async function importStambookAnimals(
     
     if (updateError) {
       const action = existing ? 'update' : 'link parents for'
-      result.warnings.push(`Row ${original.originalRow}: Could not ${action} ${original.fullTag}: ${updateError.message}`)
+      result.warnings.push(
+        `Row ${original.originalRow}: Could not ${action} ${original.fullTag}. ${friendlyError(updateError, 'Try that row again.')}`,
+      )
     } else if (existing) {
       result.updated++
       if (updates.dam_id || updates.dam_tag_number || updates.sire_id || updates.sire_name) parentsLinked++

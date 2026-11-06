@@ -6,6 +6,7 @@ import {
   downloadFarmBackup,
   fetchFarmBackups,
 } from '../../lib/backups'
+import { friendlyError } from '../../lib/userError'
 import type { FarmBackup } from '../../lib/types'
 import { formatFileSize } from '../../lib/animalDocuments'
 import { Button } from '../../components/ui/Button'
@@ -42,7 +43,7 @@ export function BackupsPage() {
     try {
       setBackups(await fetchFarmBackups(profile.company_id))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load backups')
+      setError(friendlyError(err, 'Failed to load backups'))
     } finally {
       setLoading(false)
     }
@@ -64,7 +65,7 @@ export function BackupsPage() {
         `Saved ${backup.file_name} with ${backup.animal_count} ${backup.animal_count === 1 ? 'animal' : 'animals'}.`,
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create backup')
+      setError(friendlyError(err, 'Failed to create backup'))
     } finally {
       setCreating(false)
     }
@@ -76,7 +77,7 @@ export function BackupsPage() {
     try {
       await downloadFarmBackup(backup)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to download backup')
+      setError(friendlyError(err, 'Failed to download backup'))
     } finally {
       setBusyId(null)
     }
@@ -92,7 +93,7 @@ export function BackupsPage() {
       setBackups((current) => current.filter((item) => item.id !== backup.id))
       setSuccess(`${backup.file_name} deleted.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete backup')
+      setError(friendlyError(err, 'Failed to delete backup'))
     } finally {
       setBusyId(null)
     }

@@ -9,6 +9,7 @@ import {
   limitReached,
   type CompanyPlan,
 } from '../../lib/packages'
+import { friendlyError } from '../../lib/userError'
 
 export function PackagePage() {
   const [plan, setPlan] = useState<CompanyPlan | null>(null)
@@ -25,16 +26,7 @@ export function PackagePage() {
         const next = await fetchCompanyPlan()
         if (!cancelled) setPlan(next)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load your package'
-        const missingSetup =
-          message.includes('company_plan_usage') || message.toLowerCase().includes('schema cache')
-        if (!cancelled) {
-          setError(
-            missingSetup
-              ? 'Packages are not set up on the database yet. A super admin needs to apply the packages migration.'
-              : message,
-          )
-        }
+        if (!cancelled) setError(friendlyError(err, 'Failed to load your package'))
       } finally {
         if (!cancelled) setLoading(false)
       }

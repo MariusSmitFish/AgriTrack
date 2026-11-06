@@ -10,6 +10,7 @@ import {
   type AnimalImportContext,
   type AnimalImportPreview,
 } from '../../lib/animalImport'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { PageHeader } from '../../components/layout/AppShell'
@@ -46,11 +47,11 @@ export function ImportAnimalsPage() {
         .select('id, stud_number, id_year, id_number, tag_number, name, sex')
         .eq('company_id', profile.company_id),
     ]).then(([locationsRes, encampmentsRes, animalsRes]) => {
-      if (locationsRes.error) setError(locationsRes.error.message)
+      if (locationsRes.error) setError(friendlyError(locationsRes.error, 'Could not load locations.'))
       else setLocations(locationsRes.data ?? [])
-      if (encampmentsRes.error) setError(encampmentsRes.error.message)
+      if (encampmentsRes.error) setError(friendlyError(encampmentsRes.error, 'Could not load camps.'))
       else setEncampments(encampmentsRes.data ?? [])
-      if (animalsRes.error) setError(animalsRes.error.message)
+      if (animalsRes.error) setError(friendlyError(animalsRes.error, 'Could not load the herd.'))
       else setExisting(animalsRes.data ?? [])
       setLoading(false)
     })
@@ -122,12 +123,11 @@ export function ImportAnimalsPage() {
       }
     } catch (err) {
       const saved = inserted.length
+      const detail = friendlyError(err, 'Could not save the animals. Try the remaining rows again.')
       setError(
         saved > 0
-          ? `${saved} animals were saved, then the upload stopped. ${err instanceof Error ? err.message : 'Try the remaining rows again.'}`
-          : err instanceof Error
-            ? err.message
-            : 'Could not save the animals.',
+          ? `${saved} animals were saved, then the upload stopped. ${detail}`
+          : detail,
       )
       setImporting(false)
       return

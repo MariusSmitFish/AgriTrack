@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { supabase } from '../../lib/supabase'
 import type { Animal, AnimalInoculation, BreedingEvent } from '../../lib/types'
 import { animalLabel } from '../../lib/animals'
@@ -68,7 +68,7 @@ export function CompanyDashboardPage() {
         setInoculations(data.inoculations)
         setBreedingEvents(data.breedingEvents)
       } catch (err) {
-        if (!cancelled) setError(errorText(err, 'Failed to load dashboard'))
+        if (!cancelled) setError(friendlyError(err, 'Failed to load dashboard'))
       } finally {
         if (!cancelled) setLoading(false)
       }

@@ -30,7 +30,8 @@ src/
 ```tsx
 // ✅ Query with typed results
 const { data, error } = await supabase.from('companies').select('*')
-if (error) setError(error.message)
+if (error) setError(friendlyError(error, 'Something went wrong. Try again.'))
+// friendlyError from src/lib/userError — never show error.message, HTTP status, or error codes
 
 // ✅ Admin user creation
 await createUser({ email, password, full_name, role, company_id })

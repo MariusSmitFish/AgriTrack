@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
 import { Logo } from '../../components/ui/Logo'
+import { friendlyError } from '../../lib/userError'
 
 export function ForgotPasswordPage() {
   const { requestPasswordReset, session, profile, loading, isPasswordRecovery } = useAuth()
@@ -30,11 +31,7 @@ export function ForgotPasswordPage() {
       await requestPasswordReset(email)
       setSent(true)
     } catch (err: unknown) {
-      const message =
-        err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
-          ? err.message
-          : 'Could not send reset email'
-      setError(message)
+      setError(friendlyError(err, 'Could not send the reset email. Try again.'))
     } finally {
       setSubmitting(false)
     }

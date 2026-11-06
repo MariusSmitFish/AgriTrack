@@ -10,6 +10,7 @@ import {
   type Encampment,
   type FarmLocation,
 } from '../../lib/types'
+import { friendlyError } from '../../lib/userError'
 import {
   animalLabel,
   animalSelectionOptions,
@@ -78,13 +79,13 @@ export function CaptureAnimalPage() {
         .eq('company_id', profile.company_id)
         .order('name'),
     ]).then(([animalsRes, locationsRes, encampmentsRes]) => {
-      if (animalsRes.error) setError(animalsRes.error.message)
+      if (animalsRes.error) setError(friendlyError(animalsRes.error, 'Could not load the herd.'))
       else setHerd(animalsRes.data ?? [])
 
-      if (locationsRes.error) setError(locationsRes.error.message)
+      if (locationsRes.error) setError(friendlyError(locationsRes.error, 'Could not load locations.'))
       else setLocations(locationsRes.data ?? [])
 
-      if (encampmentsRes.error) setError(encampmentsRes.error.message)
+      if (encampmentsRes.error) setError(friendlyError(encampmentsRes.error, 'Could not load camps.'))
       else setEncampments(encampmentsRes.data ?? [])
     })
   }, [profile?.company_id])
@@ -150,7 +151,7 @@ export function CaptureAnimalPage() {
       .single()
 
     if (insertError) {
-      setError(insertError.message)
+      setError(friendlyError(insertError, 'Could not save the animal.'))
       setSubmitting(false)
       return
     }

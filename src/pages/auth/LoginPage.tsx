@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
 import { Logo } from '../../components/ui/Logo'
+import { friendlyError } from '../../lib/userError'
 
 export function LoginPage() {
   const { signIn, session, profile, loading, isPasswordRecovery } = useAuth()
@@ -29,22 +30,7 @@ export function LoginPage() {
     try {
       await signIn(email, password)
     } catch (err: unknown) {
-      console.error('Login error:', err)
-
-      let message = 'Login failed'
-      if (err && typeof err === 'object') {
-        if ('message' in err && typeof err.message === 'string' && err.message) {
-          message = err.message
-        }
-        if ('status' in err) {
-          message += ` (HTTP ${String(err.status)})`
-        }
-        if ('code' in err && err.code) {
-          message += ` — ${String(err.code)}`
-        }
-      }
-
-      setError(message)
+      setError(friendlyError(err, 'Could not sign in. Check your email and password, then try again.'))
     } finally {
       setSubmitting(false)
     }

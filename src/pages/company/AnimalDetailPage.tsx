@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import type {
   Animal,
   AnimalSelection,
@@ -186,7 +186,7 @@ export function AnimalDetailPage() {
       setEncampments(data.encampments)
       setHerdAnimals(data.herd)
     } catch (err) {
-      setError(errorText(err, 'Failed to load animal'))
+      setError(friendlyError(err, 'Failed to load animal'))
     } finally {
       setLoading(false)
     }
@@ -244,7 +244,7 @@ export function AnimalDetailPage() {
       await deleteAnimal(animal)
       navigate('/app/animals', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete animal')
+      setError(friendlyError(err, 'Failed to delete animal'))
       setDeleting(false)
     }
   }
@@ -274,7 +274,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(friendlyError(updateError, 'Could not update the living place.'))
       setSavingPlace(false)
       return
     }
@@ -324,7 +324,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(friendlyError(updateError, 'Could not update the animal ID.'))
       setSavingIdentity(false)
       return
     }
@@ -367,7 +367,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(friendlyError(updateError, 'Could not update the animal details.'))
       setSavingDetails(false)
       return
     }
@@ -397,7 +397,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setError(updateError.message)
+      setError(friendlyError(updateError, 'Could not update the pedigree.'))
       setSavingPedigree(false)
       return
     }
@@ -442,7 +442,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setSaleError(updateError.message)
+      setSaleError(friendlyError(updateError, 'Could not record the sale.'))
       setSavingSale(false)
       return
     }
@@ -474,7 +474,7 @@ export function AnimalDetailPage() {
       .eq('id', animal.id)
 
     if (updateError) {
-      setSaleError(updateError.message)
+      setSaleError(friendlyError(updateError, 'Could not remove the sale.'))
       setSavingSale(false)
       return
     }

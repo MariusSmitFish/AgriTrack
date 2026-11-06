@@ -14,7 +14,7 @@ import {
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
 import { useOfflineRead } from '../../contexts/OfflineContext'
-import { errorText } from '../../lib/offlineHerd'
+import { friendlyError } from '../../lib/userError'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
@@ -92,7 +92,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
         ),
       )
     } catch (err) {
-      setError(errorText(err, 'Failed to load weights'))
+      setError(friendlyError(err, 'Failed to load weights'))
     } finally {
       setLoading(false)
     }
@@ -144,7 +144,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
       }
       resetForm()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save weight')
+      setError(friendlyError(err, 'Failed to save weight'))
     } finally {
       setSubmitting(false)
     }
@@ -179,7 +179,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
       if (editingId === record.id) resetForm()
       setSuccess('Weight deleted.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete weight')
+      setError(friendlyError(err, 'Failed to delete weight'))
     }
   }
 
