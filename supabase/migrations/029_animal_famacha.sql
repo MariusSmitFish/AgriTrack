@@ -1,4 +1,4 @@
--- FAMACHA eye-score history per animal. Score 1 is healthy, 5 is severely anemic.
+-- FAMACHA score history per animal. Score 5 is good, 1 is bad.
 
 create table public.animal_famacha (
   id uuid primary key default gen_random_uuid(),

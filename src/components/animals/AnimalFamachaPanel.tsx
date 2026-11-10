@@ -179,7 +179,7 @@ export function AnimalFamachaPanel({ animalId, companyId, userId }: AnimalFamach
         <div>
           <h3 className="font-display font-semibold text-pasture-900">FAMACHA</h3>
           <p className="mt-1 text-sm text-soil-500">
-            Eye score from 1 (healthy) to 5 (severely anemic). Each check is kept in the history.
+            Score from 5 (good) to 1 (bad). Each check is kept in the history.
           </p>
         </div>
         <div className="text-right">

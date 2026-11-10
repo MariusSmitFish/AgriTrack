@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { AnimalFamacha, AnimalFamachaFormData } from './types'
 import { todayDateValue, formatInoculationDate } from './inoculations'
 
-export const famachaScoreOptions = ['1', '2', '3', '4', '5'] as const
+export const famachaScoreOptions = ['5', '4', '3', '2', '1'] as const
 
 export function emptyFamachaForm(): AnimalFamachaFormData {
   return {
@@ -24,9 +24,9 @@ export function formatFamachaDate(value: string | null | undefined) {
 }
 
 export function famachaScoreClass(score: number) {
-  if (score <= 2) return 'font-semibold text-pasture-800'
+  if (score >= 4) return 'font-semibold text-pasture-800'
   if (score === 3) return 'font-semibold text-barn-600'
-  if (score >= 4) return 'font-semibold text-red-700'
+  if (score >= 1) return 'font-semibold text-red-700'
   return 'text-soil-600'
 }
 
