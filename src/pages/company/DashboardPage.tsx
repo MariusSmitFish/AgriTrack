@@ -6,14 +6,15 @@ import { friendlyError } from '../../lib/userError'
 import { supabase } from '../../lib/supabase'
 import type { Animal, AnimalInoculation, BreedingEvent } from '../../lib/types'
 import { animalLabel } from '../../lib/animals'
-import { fetchCompanyInoculations, formatInoculationDate, healthKindLabel } from '../../lib/inoculations'
+import { fetchCompanyInoculations, formatInoculationDate, healthKindLabel, todayDateValue } from '../../lib/inoculations'
 import { fetchCompanyBreedingEvents, formatBreedingOutcome } from '../../lib/breeding'
 import {
+  addDaysToDateValue,
   buildInoculationAlerts,
   computeCampHeadcounts,
   computeHerdStats,
 } from '../../lib/herdInsights'
-import { mixedSpeciesBirthLabels } from '../../lib/speciesTerms'
+import { mixedSpeciesBirthLabels, upcomingBirthDays } from '../../lib/speciesTerms'
 import { exportCsv } from '../../lib/exportCsv'
 import { Card, ActionLink, StatCard } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -88,12 +89,8 @@ export function CompanyDashboardPage() {
   )
 
   const birthAlerts = useMemo(() => {
-    const today = new Date()
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
-    const horizonDate = new Date(today)
-    horizonDate.setDate(horizonDate.getDate() + 60)
-    const horizon = `${horizonDate.getFullYear()}-${pad(horizonDate.getMonth() + 1)}-${pad(horizonDate.getDate())}`
+    const todayStr = todayDateValue()
+    const horizon = addDaysToDateValue(todayStr, upcomingBirthDays)
 
     const open = breedingEvents.filter(
       (e) =>

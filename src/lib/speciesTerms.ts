@@ -76,11 +76,14 @@ export function expectedBirthLabel(species: string | null | undefined) {
   return `Expected ${noun}`
 }
 
+/** How far ahead the breeding calendar and birthing outlook look. */
+export const upcomingBirthDays = 42
+
 /** Neutral labels when the farm may mix species */
 export const mixedSpeciesBirthLabels = {
   outlookTitle: 'Birthing outlook',
-  outlookDescription: 'Expected births overdue or within 60 days.',
-  emptyUpcoming: 'No expected births in the next 60 days.',
+  outlookDescription: `Expected births overdue or within ${upcomingBirthDays} days.`,
+  emptyUpcoming: `No expected births in the next ${upcomingBirthDays} days.`,
   expectedShort: 'Expected birth',
   trackDescription: 'Log services and track expected birth dates across the herd.',
   calendarOffspring: 'offspring',

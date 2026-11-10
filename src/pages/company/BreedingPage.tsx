@@ -24,6 +24,7 @@ import {
   gestationDaysForSpecies,
   mixedSpeciesBirthLabels,
   offspringNoun,
+  upcomingBirthDays,
 } from '../../lib/speciesTerms'
 import { filterBySearch } from '../../lib/search'
 import { useClientPagination } from '../../lib/pagination'
@@ -135,7 +136,7 @@ export function BreedingPage() {
   const outcomeOptions = breedingOutcomeOptionsForSpecies(selectedDamSpecies)
 
   const today = todayDateValue()
-  const horizon = addDaysToDateValue(today, 60)
+  const horizon = addDaysToDateValue(today, upcomingBirthDays)
 
   const filteredEvents = useMemo(() => {
     let list = events
@@ -405,7 +406,7 @@ export function BreedingPage() {
             {(
               [
                 ['all', 'All'],
-                ['upcoming', 'Next 60 days'],
+                ['upcoming', `Next ${upcomingBirthDays} days`],
                 ['overdue', 'Overdue'],
               ] as const
             ).map(([value, label]) => (
