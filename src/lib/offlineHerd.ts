@@ -2,6 +2,7 @@ import type {
   Animal,
   AnimalAchievement,
   AnimalInoculation,
+  AnimalFamacha,
   AnimalWeight,
   BreedingEvent,
   Encampment,
@@ -23,6 +24,7 @@ export interface FarmSnapshot {
   breedingEvents: BreedingEvent[]
   inoculations: AnimalInoculation[]
   weights: AnimalWeight[]
+  famacha: AnimalFamacha[]
   achievements: AnimalAchievement[]
   healthOptions: HealthOption[]
 }

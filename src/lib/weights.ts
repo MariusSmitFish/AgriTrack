@@ -2,12 +2,31 @@ import { supabase } from './supabase'
 import type { AnimalWeight, AnimalWeightFormData } from './types'
 import { todayDateValue, formatInoculationDate } from './inoculations'
 
+export const bodyConditionOptions = ['1', '2', '3', '4', '5'] as const
+
 export function emptyWeightForm(): AnimalWeightFormData {
   return {
     weighed_at: todayDateValue(),
     weight_kg: '',
+    body_condition: '',
     notes: '',
   }
+}
+
+export function normalizeAnimalWeight(row: AnimalWeight): AnimalWeight {
+  const raw = row.body_condition as number | string | null | undefined
+  const score = raw == null || raw === '' ? null : Number(raw)
+  return {
+    ...row,
+    weight_kg: Number(row.weight_kg),
+    body_condition:
+      score != null && Number.isInteger(score) && score >= 1 && score <= 5 ? score : null,
+  }
+}
+
+export function formatBodyCondition(value: number | null | undefined) {
+  if (value == null) return '—'
+  return String(value)
 }
 
 export function formatWeightDate(value: string | null | undefined) {
@@ -43,9 +62,15 @@ export function weightFormToPayload(form: AnimalWeightFormData) {
     throw new Error('Enter a weight greater than zero.')
   }
 
+  const score = Number(form.body_condition)
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
+    throw new Error('Choose a body condition from 1 to 5.')
+  }
+
   return {
     weighed_at: form.weighed_at || todayDateValue(),
     weight_kg: Math.round(weight * 100) / 100,
+    body_condition: score,
     notes: form.notes.trim() === '' ? null : form.notes.trim(),
   }
 }
@@ -59,10 +84,7 @@ export async function fetchAnimalWeights(animalId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data ?? []).map((row) => ({
-    ...row,
-    weight_kg: Number(row.weight_kg),
-  })) as AnimalWeight[]
+  return (data ?? []).map((row) => normalizeAnimalWeight(row as AnimalWeight))
 }
 
 export async function createAnimalWeight(params: {
@@ -84,7 +106,7 @@ export async function createAnimalWeight(params: {
     .single()
 
   if (error) throw error
-  return { ...data, weight_kg: Number(data.weight_kg) } as AnimalWeight
+  return normalizeAnimalWeight(data as AnimalWeight)
 }
 
 export async function updateAnimalWeight(id: string, form: AnimalWeightFormData) {
@@ -97,7 +119,7 @@ export async function updateAnimalWeight(id: string, form: AnimalWeightFormData)
     .single()
 
   if (error) throw error
-  return { ...data, weight_kg: Number(data.weight_kg) } as AnimalWeight
+  return normalizeAnimalWeight(data as AnimalWeight)
 }
 
 export async function deleteAnimalWeight(id: string) {

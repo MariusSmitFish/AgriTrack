@@ -202,6 +202,7 @@ export interface AnimalWeight {
   animal_id: string
   weighed_at: string
   weight_kg: number
+  body_condition: number | null
   notes: string | null
   created_by: string | null
   created_at: string
@@ -211,7 +212,24 @@ export interface AnimalWeight {
 export interface AnimalWeightFormData {
   weighed_at: string
   weight_kg: string
+  body_condition: string
   notes: string
+}
+
+export interface AnimalFamacha {
+  id: string
+  company_id: string
+  animal_id: string
+  checked_at: string
+  score: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AnimalFamachaFormData {
+  checked_at: string
+  score: string
 }
 
 export interface AnimalDocument {

@@ -1,6 +1,7 @@
 import type {
   Animal,
   AnimalAchievement,
+  AnimalFamacha,
   AnimalInoculation,
   AnimalWeight,
   BreedingEvent,
@@ -10,6 +11,8 @@ import type {
 } from './types'
 import type { FarmSnapshot } from './offlineHerd'
 import { supabase } from './supabase'
+import { normalizeAnimalFamacha } from './famacha'
+import { normalizeAnimalWeight } from './weights'
 
 type PageResult<T> = { data: T[] | null; error: { message: string } | null }
 
@@ -28,7 +31,7 @@ async function fetchAll<T>(
 }
 
 export async function fetchFarmSnapshot(companyId: string): Promise<FarmSnapshot> {
-  const [animals, locations, encampments, breedingEvents, inoculations, weights, achievements, healthOptions] =
+  const [animals, locations, encampments, breedingEvents, inoculations, weights, famacha, achievements, healthOptions] =
     await Promise.all([
       fetchAll<Animal>(() =>
         supabase
@@ -66,6 +69,14 @@ export async function fetchFarmSnapshot(companyId: string): Promise<FarmSnapshot
           .order('weighed_at', { ascending: false })
           .order('created_at', { ascending: false }),
       ),
+      fetchAll<AnimalFamacha>(() =>
+        supabase
+          .from('animal_famacha')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('checked_at', { ascending: false })
+          .order('created_at', { ascending: false }),
+      ),
       fetchAll<AnimalAchievement>(() =>
         supabase
           .from('animal_achievements')
@@ -86,7 +97,8 @@ export async function fetchFarmSnapshot(companyId: string): Promise<FarmSnapshot
     encampments,
     breedingEvents,
     inoculations,
-    weights: weights.map((row) => ({ ...row, weight_kg: Number(row.weight_kg) })),
+    weights: weights.map((row) => normalizeAnimalWeight(row)),
+    famacha: famacha.map((row) => normalizeAnimalFamacha(row)),
     achievements,
     healthOptions,
   }

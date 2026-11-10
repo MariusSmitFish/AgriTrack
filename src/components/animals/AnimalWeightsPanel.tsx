@@ -1,13 +1,16 @@
 import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { AnimalWeight, AnimalWeightFormData } from '../../lib/types'
 import {
+  bodyConditionOptions,
   createAnimalWeight,
   deleteAnimalWeight,
   emptyWeightForm,
   fetchAnimalWeights,
+  formatBodyCondition,
   formatWeightChange,
   formatWeightDate,
   formatWeightKg,
+  normalizeAnimalWeight,
   updateAnimalWeight,
   weightChangeKg,
 } from '../../lib/weights'
@@ -17,6 +20,7 @@ import { useOfflineRead } from '../../contexts/OfflineContext'
 import { friendlyError } from '../../lib/userError'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { Select } from '../ui/Select'
 import { Card } from '../ui/Card'
 import { SearchField } from '../ui/SearchField'
 import { Pagination } from '../ui/Pagination'
@@ -50,6 +54,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
       filterBySearch(records, deferredQuery, (record) => [
         formatWeightKg(record.weight_kg),
         formatWeightDate(record.weighed_at),
+        formatBodyCondition(record.body_condition),
         record.notes,
       ]),
     [records, deferredQuery],
@@ -87,7 +92,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
           (saved) =>
             saved.weights
               .filter((row) => row.animal_id === animalId)
-              .map((row) => ({ ...row, weight_kg: Number(row.weight_kg) })),
+              .map((row) => normalizeAnimalWeight(row)),
           () => fetchAnimalWeights(animalId),
         ),
       )
@@ -155,6 +160,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
     setForm({
       weighed_at: record.weighed_at,
       weight_kg: String(record.weight_kg),
+      body_condition: record.body_condition == null ? '' : String(record.body_condition),
       notes: record.notes ?? '',
     })
     setSuccess('')
@@ -197,6 +203,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
           {latest && (
             <p className="mt-0.5 text-xs text-pasture-800">
               Latest {formatWeightKg(latest.weight_kg)}
+              {latest.body_condition != null ? ` · condition ${latest.body_condition}` : ''}
             </p>
           )}
         </div>
@@ -223,6 +230,19 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
           placeholder="e.g. 42.5"
           required
         />
+        <Select
+          label="Body condition"
+          value={form.body_condition}
+          onChange={(e) => set('body_condition', e.target.value)}
+          required
+        >
+          <option value="">Select</option>
+          {bodyConditionOptions.map((score) => (
+            <option key={score} value={score}>
+              {score}
+            </option>
+          ))}
+        </Select>
         <div className="md:col-span-2">
           <Input
             label="Notes (optional)"
@@ -263,7 +283,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
               id="weights-search"
               value={query}
               onChange={setQuery}
-              placeholder="Search weight, date, notes…"
+              placeholder="Search weight, date, condition, notes…"
               resultCount={filteredRecords.length}
               totalCount={records.length}
             />
@@ -284,6 +304,10 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
                         {
                           label: 'Change',
                           value: formatWeightChange(change),
+                        },
+                        {
+                          label: 'Condition',
+                          value: formatBodyCondition(record.body_condition),
                         },
                         { label: 'Notes', value: record.notes ?? '—' },
                       ]}
@@ -316,6 +340,7 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
                     <th className="pb-2 font-medium">Date</th>
                     <th className="pb-2 font-medium">Weight</th>
                     <th className="pb-2 font-medium">Change</th>
+                    <th className="pb-2 font-medium">Condition</th>
                     <th className="pb-2 font-medium">Notes</th>
                     <th className="pb-2 font-medium"></th>
                   </tr>
@@ -341,6 +366,9 @@ export function AnimalWeightsPanel({ animalId, companyId, userId }: AnimalWeight
                           }`}
                         >
                           {formatWeightChange(change)}
+                        </td>
+                        <td className="py-3 text-soil-600">
+                          {formatBodyCondition(record.body_condition)}
                         </td>
                         <td className="py-3 text-soil-600">{record.notes ?? '—'}</td>
                         <td className="py-3 text-right">

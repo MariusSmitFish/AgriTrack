@@ -72,6 +72,7 @@ export interface AnalyticsReport {
   averageWeightLabel: string
   femaleWeightLabel: string
   maleWeightLabel: string
+  weightRanges: CountRow[]
   shows: number
   showResults: CountRow[]
 }
@@ -90,6 +91,16 @@ const AGE_ORDER = [
 const STATUS_ORDER = ['Active', 'Sold', 'Deceased', 'Transferred', 'Stamboek']
 const SEX_ORDER = ['Female', 'Male', 'Unknown']
 const OUTCOME_ORDER = ['Open / mated', 'Pregnant', 'Born', 'Failed / open']
+const WEIGHT_ORDER = [
+  'Under 20 kg',
+  '20–40 kg',
+  '40–60 kg',
+  '60–80 kg',
+  '80–100 kg',
+  '100–200 kg',
+  '200–400 kg',
+  '400 kg and over',
+]
 
 function isActive(animal: Animal) {
   return !animal.status || animal.status === 'active'
@@ -211,6 +222,17 @@ function weightLabel(value: number | null) {
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : 1,
     maximumFractionDigits: 1,
   })} kg`
+}
+
+function weightBand(kg: number) {
+  if (kg < 20) return 'Under 20 kg'
+  if (kg < 40) return '20–40 kg'
+  if (kg < 60) return '40–60 kg'
+  if (kg < 80) return '60–80 kg'
+  if (kg < 100) return '80–100 kg'
+  if (kg < 200) return '100–200 kg'
+  if (kg < 400) return '200–400 kg'
+  return '400 kg and over'
 }
 
 export function analyticsYears(input: AnalyticsInput) {
@@ -336,6 +358,8 @@ export function buildAnalytics(input: AnalyticsInput, period: AnalyticsPeriod): 
   const maleWeights = activeWeights
     .filter((record) => animalById.get(record.animal_id)?.sex === 'male')
     .map((record) => record.weight_kg)
+  const weightRanges = new Map<string, number>()
+  for (const record of activeWeights) bump(weightRanges, weightBand(record.weight_kg))
 
   const periodShows = input.achievements.filter((record) => inPeriod(record.shown_at, period))
   const showResults = new Map<string, number>()
@@ -384,6 +408,7 @@ export function buildAnalytics(input: AnalyticsInput, period: AnalyticsPeriod): 
     averageWeightLabel: weightLabel(average(activeWeights.map((record) => record.weight_kg))),
     femaleWeightLabel: weightLabel(average(femaleWeights)),
     maleWeightLabel: weightLabel(average(maleWeights)),
+    weightRanges: orderedCounts(weightRanges, WEIGHT_ORDER),
     shows: periodShows.length,
     showResults: topCounts(showResults, 6),
   }

@@ -33,6 +33,7 @@ import { AnimalDocumentsPanel } from '../../components/animals/AnimalDocumentsPa
 import { AnimalAchievementsPanel } from '../../components/animals/AnimalAchievementsPanel'
 import { AnimalInoculationsPanel } from '../../components/animals/AnimalInoculationsPanel'
 import { AnimalWeightsPanel } from '../../components/animals/AnimalWeightsPanel'
+import { AnimalFamachaPanel } from '../../components/animals/AnimalFamachaPanel'
 import { AnimalBreedingPanel } from '../../components/animals/AnimalBreedingPanel'
 import { AnimalPrintCard } from '../../components/animals/AnimalPrintCard'
 import { ParentPicker } from '../../components/animals/ParentPicker'
@@ -951,6 +952,14 @@ export function AnimalDetailPage() {
 
       <CollapsibleSection title="Weight" className="print:hidden">
         <AnimalWeightsPanel
+          animalId={animal.id}
+          companyId={profile.company_id}
+          userId={profile.id}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="FAMACHA" className="print:hidden">
+        <AnimalFamachaPanel
           animalId={animal.id}
           companyId={profile.company_id}
           userId={profile.id}

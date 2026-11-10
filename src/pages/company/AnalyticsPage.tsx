@@ -353,6 +353,15 @@ export function AnalyticsPage() {
                   {report.weighIns} weigh-in{report.weighIns === 1 ? '' : 's'} in this period.
                 </p>
               </Card>
+
+              <div className="lg:col-span-2">
+                <Breakdown
+                  title="Weight ranges"
+                  description="Active animals grouped by their latest weight. Ranges with no animals are hidden."
+                  rows={report.weightRanges}
+                  empty="No weights recorded for active animals."
+                />
+              </div>
             </div>
           </section>
 
