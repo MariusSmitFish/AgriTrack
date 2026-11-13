@@ -158,6 +158,60 @@ export function formatAnimalId(
   return `${stud}-${year}-${number}`
 }
 
+export function normalizedIdentity(
+  animal: {
+    stud_number?: string | null
+    id_year?: string | null
+    id_number?: string | null
+    tag_number?: string | null
+  },
+  padPartial = true,
+) {
+  const parsed = animal.tag_number ? normalizeTagNumber(animal.tag_number) : null
+  const studRaw = (animal.stud_number ?? '').replace(/\D/g, '')
+  const yearRaw = (animal.id_year ?? '').replace(/\D/g, '')
+  const numberRaw = (animal.id_number ?? '').replace(/\D/g, '')
+  const stud = padPartial || studRaw.length >= 4 ? padDigits(studRaw, 4) : studRaw
+  const year = padPartial || yearRaw.length >= 2 ? padDigits(yearRaw, 2) || parsed?.year || '' : yearRaw
+  const number =
+    padPartial || numberRaw.length >= 4 ? padDigits(numberRaw, 4) || parsed?.number || '' : numberRaw
+  return { stud, year, number }
+}
+
+/**
+ * Same animal ID cannot be captured twice.
+ * A tag with no stud number cannot match a tag already on the farm.
+ */
+export function duplicateAnimalMessage(
+  herd: Array<
+    Pick<Animal, 'id' | 'name' | 'stud_tag_number' | 'tag_number'> &
+      Parameters<typeof normalizedIdentity>[0]
+  >,
+  candidate: Parameters<typeof normalizedIdentity>[0] & { id?: string },
+  padPartial = false,
+) {
+  const next = normalizedIdentity(candidate, padPartial)
+  if (!/^\d{2}$/.test(next.year) || !/^\d{4}$/.test(next.number)) return null
+
+  const others = herd.filter((animal) => animal.id !== candidate.id)
+  if (/^\d{4}$/.test(next.stud)) {
+    const clash = others.find((animal) => {
+      const current = normalizedIdentity(animal, true)
+      return current.stud === next.stud && current.year === next.year && current.number === next.number
+    })
+    if (!clash) return null
+    return `Animal ID ${next.stud}-${next.year}-${next.number} is already used by ${animalLabel(clash)}.`
+  }
+
+  const tag = `${next.year}-${next.number}`
+  const clash = others.find((animal) => {
+    const current = normalizedIdentity(animal, true)
+    return current.year === next.year && current.number === next.number
+  })
+  if (!clash) return null
+  return `Tag ${tag} is already on this farm. Add a stud number if this is a different animal.`
+}
+
 /** Tag number: year – number (`##-####`). Falls back to a stored tag. */
 export function formatTagNumber(
   animal: {

@@ -107,6 +107,12 @@ function mapKnown(message: string, code: string) {
   if (/row-level security|permission denied|42501|\bforbidden\b|admin role required/.test(text)) {
     return 'You do not have permission to do that.'
   }
+  if (/animals_company_animal_id_uidx/.test(text)) {
+    return 'This animal is already on the farm.'
+  }
+  if (/animals_company_bare_tag_uidx/.test(text)) {
+    return 'This tag is already on the farm. Add a stud number if this is a different animal.'
+  }
   if (/duplicate key|unique constraint|23505/.test(text)) {
     return 'That record already exists.'
   }

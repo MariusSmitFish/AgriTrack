@@ -15,6 +15,7 @@ import type {
 } from '../../lib/types'
 import {
   animalLabel,
+  duplicateAnimalMessage,
   animalSelectionOptions,
   animalSexOptions,
   animalSpeciesOptions,
@@ -298,15 +299,18 @@ export function AnimalDetailPage() {
       return
     }
 
-    const clash = herdAnimals.find(
-      (other) =>
-        other.id !== animal.id &&
-        padDigits(other.stud_number ?? '', 4) === stud &&
-        (other.id_year ?? '') === year &&
-        padDigits(other.id_number ?? '', 4) === number,
+    const duplicate = duplicateAnimalMessage(
+      herdAnimals,
+      {
+        id: animal.id,
+        stud_number: stud,
+        id_year: year,
+        id_number: number,
+      },
+      true,
     )
-    if (clash) {
-      setError(`Animal ID ${stud}-${year}-${number} is already used by ${animalLabel(clash)}.`)
+    if (duplicate) {
+      setError(duplicate)
       return
     }
 

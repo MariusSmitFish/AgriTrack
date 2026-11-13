@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useOfflineRead } from '../../contexts/OfflineContext'
 import { friendlyError } from '../../lib/userError'
-import type { Animal, AnimalStatus } from '../../lib/types'
+import type { Animal, AnimalStatus, StudbookSchedule } from '../../lib/types'
 import {
   animalLabel,
   animalsWithExactTag,
@@ -17,6 +17,7 @@ import {
   formatSpecies,
   formatTagNumber,
   animalStatusOptions,
+  studbookScheduleOptions,
   studTagChoiceLabel,
 } from '../../lib/animals'
 import { animalPlaceLabel } from '../../lib/locations'
@@ -131,6 +132,7 @@ function AnimalListActions({
 type StatusFilter = 'all' | AnimalStatus
 type SexFilter = 'all' | 'female' | 'male' | 'unknown'
 type ParentsFilter = 'all' | 'both' | 'missing'
+type StudbookFilter = 'all' | 'none' | StudbookSchedule
 
 function recordedStatus(animal: Animal): AnimalStatus {
   return animal.status ?? 'active'
@@ -191,6 +193,7 @@ export function AnimalsPage() {
   const [breedFilter, setBreedFilter] = useState('all')
   const [parentsFilter, setParentsFilter] = useState<ParentsFilter>('all')
   const [speciesFilter, setSpeciesFilter] = useState('all')
+  const [studbookFilter, setStudbookFilter] = useState<StudbookFilter>('all')
   const deferredQuery = useDeferredValue(query)
 
   const downloadTemplate = async () => {
@@ -289,9 +292,13 @@ export function AnimalsPage() {
     placeFilter !== 'all' ||
     breedFilter !== 'all' ||
     parentsFilter !== 'all' ||
-    speciesFilter !== 'all'
+    speciesFilter !== 'all' ||
+    studbookFilter !== 'all'
 
-  const matchesFilters = (animal: Animal, ignore?: 'status' | 'sex' | 'place' | 'breed' | 'parents' | 'species') => {
+  const matchesFilters = (
+    animal: Animal,
+    ignore?: 'status' | 'sex' | 'place' | 'breed' | 'parents' | 'species' | 'studbook',
+  ) => {
     if (ignore !== 'status' && statusFilter !== 'all' && recordedStatus(animal) !== statusFilter) return false
     if (ignore !== 'sex' && sexFilter !== 'all' && recordedSex(animal) !== sexFilter) return false
     if (ignore !== 'place' && placeFilter !== 'all' && placeFor(animal) !== placeFilter) return false
@@ -300,12 +307,16 @@ export function AnimalsPage() {
     if (ignore !== 'species' && speciesFilter !== 'all' && (animal.species?.trim() || '—') !== speciesFilter) {
       return false
     }
+    if (ignore !== 'studbook' && studbookFilter !== 'all') {
+      const schedule = animal.studbook_schedule ?? ''
+      if (studbookFilter === 'none' ? Boolean(schedule) : schedule !== studbookFilter) return false
+    }
     return true
   }
 
   const baseAnimals = useMemo(() => {
     return animals.filter((animal) => matchesFilters(animal))
-  }, [animals, statusFilter, sexFilter, placeFilter, breedFilter, parentsFilter, speciesFilter])
+  }, [animals, statusFilter, sexFilter, placeFilter, breedFilter, parentsFilter, speciesFilter, studbookFilter])
 
   const exactTag = exactTagQuery(deferredQuery)
   const tagMatches = useMemo(() => {
@@ -327,6 +338,7 @@ export function AnimalsPage() {
         animal.id_number,
         animal.studbook_number,
         animal.studbook_schedule,
+        animal.studbook_schedule ? `studbook ${animal.studbook_schedule}` : null,
         animal.selection,
         animal.tag_number,
         animal.electronic_id,
@@ -354,7 +366,7 @@ export function AnimalsPage() {
     start,
     end,
   } = useClientPagination(filteredAnimals, {
-    resetKey: `${deferredQuery}:${statusFilter}:${sexFilter}:${placeFilter}:${breedFilter}:${parentsFilter}:${speciesFilter}`,
+    resetKey: `${deferredQuery}:${statusFilter}:${sexFilter}:${placeFilter}:${breedFilter}:${parentsFilter}:${speciesFilter}:${studbookFilter}`,
     pageSize: 20,
   })
 
@@ -474,7 +486,7 @@ export function AnimalsPage() {
               id="animals-search"
               value={query}
               onChange={setQuery}
-              placeholder="Search animal ID, tag, name, breed, location, status…"
+              placeholder="Search animal ID, tag, name, breed, location, status, studbook…"
               resultCount={filteredAnimals.length}
               totalCount={animals.length}
             />
@@ -495,6 +507,24 @@ export function AnimalsPage() {
                     </option>
                   )
                 })}
+              </FilterSelect>
+              <FilterSelect
+                label="Studbook status"
+                value={studbookFilter}
+                onChange={(value) => setStudbookFilter(value as StudbookFilter)}
+              >
+                <option value="all">All studbook statuses</option>
+                {studbookScheduleOptions.map((option) => {
+                  if (!option.value) return null
+                  return (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  )
+                })}
+                {(studbookFilter === 'none' || animals.some((animal) => !animal.studbook_schedule)) && (
+                  <option value="none">Not specified</option>
+                )}
               </FilterSelect>
               <FilterSelect
                 label="Sex"
@@ -561,6 +591,7 @@ export function AnimalsPage() {
                     setBreedFilter('all')
                     setParentsFilter('all')
                     setSpeciesFilter('all')
+                    setStudbookFilter('all')
                   }}
                 >
                   Clear
@@ -606,6 +637,7 @@ export function AnimalsPage() {
                         { label: 'Sex', value: formatAnimalSex(animal.sex) },
                         { label: 'Lives at', value: placeFor(animal) },
                         { label: 'Status', value: formatAnimalStatus(animal.status) },
+                        { label: 'Studbook', value: animal.studbook_schedule ?? '—' },
                       ]}
                       action={
                         <div className="flex flex-col items-end gap-1">
@@ -644,6 +676,7 @@ export function AnimalsPage() {
                       <th className="pb-2 font-medium">Sex</th>
                       <th className="pb-2 font-medium">Lives at</th>
                       <th className="pb-2 font-medium">Status</th>
+                      <th className="pb-2 font-medium">Studbook</th>
                       <th className="pb-2 font-medium"></th>
                     </tr>
                   </thead>
@@ -656,6 +689,7 @@ export function AnimalsPage() {
                         <td className="py-3 text-soil-600">{formatAnimalSex(animal.sex)}</td>
                         <td className="py-3 text-soil-600">{placeFor(animal)}</td>
                         <td className="py-3 text-soil-600">{formatAnimalStatus(animal.status)}</td>
+                        <td className="py-3 text-soil-600">{animal.studbook_schedule ?? '—'}</td>
                         <td className="py-3 text-right whitespace-nowrap">
                           <Link
                             to={`/app/animals/${animal.id}`}

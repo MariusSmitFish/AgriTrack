@@ -18,6 +18,7 @@ import {
   animalSpeciesOptions,
   animalStatusOptions,
   digitsOnly,
+  duplicateAnimalMessage,
   formatAnimalId,
   formatTagNumber,
   normalizeTagNumber,
@@ -51,6 +52,7 @@ export function CaptureAnimalPage() {
   const [locations, setLocations] = useState<FarmLocation[]>([])
   const [encampments, setEncampments] = useState<Encampment[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [herdReady, setHerdReady] = useState(false)
   const [error, setError] = useState('')
   const set = <K extends keyof AnimalFormData>(key: K, value: AnimalFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -80,7 +82,10 @@ export function CaptureAnimalPage() {
         .order('name'),
     ]).then(([animalsRes, locationsRes, encampmentsRes]) => {
       if (animalsRes.error) setError(friendlyError(animalsRes.error, 'Could not load the herd.'))
-      else setHerd(animalsRes.data ?? [])
+      else {
+        setHerd(animalsRes.data ?? [])
+        setHerdReady(true)
+      }
 
       if (locationsRes.error) setError(friendlyError(locationsRes.error, 'Could not load locations.'))
       else setLocations(locationsRes.data ?? [])
@@ -100,6 +105,16 @@ export function CaptureAnimalPage() {
     id_year: yearPreview,
     id_number: numberPreview,
   })
+  const duplicateMessage = useMemo(
+    () =>
+      duplicateAnimalMessage(herd, {
+        stud_number: form.stud_number,
+        id_year: form.id_year,
+        id_number: form.id_number,
+        tag_number: form.tag_number,
+      }),
+    [herd, form.stud_number, form.id_year, form.id_number, form.tag_number],
+  )
   const applyTagNumber = (raw: string, finalize: boolean) => {
     const draft = tagNumberDraft(raw)
     const complete = draft.match(/^(\d{2})-(\d{4})$/)
@@ -124,6 +139,25 @@ export function CaptureAnimalPage() {
     e.preventDefault()
     if (!profile?.company_id) {
       setError('Your account is not linked to a farm.')
+      return
+    }
+
+    const duplicate = duplicateAnimalMessage(
+      herd,
+      {
+        stud_number: form.stud_number,
+        id_year: form.id_year,
+        id_number: form.id_number,
+        tag_number: form.tag_number,
+      },
+      true,
+    )
+    if (!herdReady) {
+      setError('The herd is still loading. Try again in a moment.')
+      return
+    }
+    if (duplicate) {
+      setError(duplicate)
       return
     }
 
@@ -230,6 +264,7 @@ export function CaptureAnimalPage() {
               {animalIdPreview ?? '####-##-####'}
             </p>
             <p className="mt-1 text-xs text-soil-500">Stud number – year – number</p>
+            {duplicateMessage && <p className="mt-2 text-sm text-red-600">{duplicateMessage}</p>}
           </div>
           <div className="md:col-span-2">
             <TagScannerField
@@ -426,7 +461,11 @@ export function CaptureAnimalPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="hidden gap-2 md:flex md:flex-row">
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+          <Button
+            type="submit"
+            disabled={submitting || !herdReady || Boolean(duplicateMessage)}
+            className="w-full sm:w-auto"
+          >
             {submitting ? 'Saving...' : 'Save animal'}
           </Button>
           <Link to="/app/animals" className="block w-full sm:w-auto">
@@ -439,7 +478,11 @@ export function CaptureAnimalPage() {
         <div className="h-20 md:hidden" aria-hidden="true" />
         <div className="print-hide fixed inset-x-0 bottom-0 z-30 border-t border-field-dark bg-panel/95 px-3 pt-3 shadow-lg shadow-pasture-900/15 backdrop-blur md:hidden pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-7xl gap-2">
-            <Button type="submit" disabled={submitting} className="min-h-12 flex-1">
+            <Button
+              type="submit"
+              disabled={submitting || !herdReady || Boolean(duplicateMessage)}
+              className="min-h-12 flex-1"
+            >
               {submitting ? 'Saving...' : 'Save animal'}
             </Button>
             <Link to="/app/animals" className="block flex-1">
